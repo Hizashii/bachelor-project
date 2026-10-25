@@ -1,0 +1,10 @@
+# This file describes the local checks that run before a commit.
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      run: npx biome check .
+    types:
+      run: npx tsc -b
+    secrets:
+      run: gitleaks protect --staged --redact

@@ -1,0 +1,15 @@
+/* This stylesheet sets the calm base tokens for future product screens. */
+:root {
+  font-family: system-ui, sans-serif;
+  color: #173c3b;
+  background: #f4faf8;
+  font-size: 16px;
+}
+body {
+  margin: 0;
+}
+.page {
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}

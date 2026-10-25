@@ -1,0 +1,9 @@
+# This file ignores local dependencies, build output, and private settings.
+node_modules/
+dist/
+.astro/
+*.tsbuildinfo
+coverage/
+.env.local
+playwright-report/
+test-results/
