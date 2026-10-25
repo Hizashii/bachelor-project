@@ -7,13 +7,30 @@ const commands = [
   ["apps/api", "dev"],
 ];
 
-const children = commands.map(([workspace, script]) =>
-  spawn("npm.cmd", ["run", script, "--workspace", workspace], {
-    stdio: "inherit",
-  }),
-);
-process.on("SIGINT", () => {
-  children.forEach((child) => {
-    child.kill();
-  });
+const children = commands.map(([workspace, script]) => {
+  const command = `npm run ${script} --workspace ${workspace}`;
+  const executable = process.platform === "win32" ? "cmd.exe" : "npm";
+  const argumentsForCommand =
+    process.platform === "win32"
+      ? ["/d", "/s", "/c", command]
+      : ["run", script, "--workspace", workspace];
+  return spawn(executable, argumentsForCommand, { stdio: "inherit" });
 });
+
+function stopChild(child) {
+  if (process.platform === "win32" && child.pid) {
+    spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+      stdio: "ignore",
+    });
+    return;
+  }
+  child.kill("SIGINT");
+}
+
+function stopAllChildren() {
+  children.forEach(stopChild);
+  process.exit(0);
+}
+
+process.on("SIGINT", stopAllChildren);
+process.on("SIGTERM", stopAllChildren);
