@@ -1,0 +1,25 @@
+{
+  "name": "freight-desk",
+  "private": true,
+  "workspaces": [
+    "apps/site",
+    "apps/app",
+    "apps/api",
+    "packages/shared",
+    "tests/e2e"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "check": "biome check . && tsc -b",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.3",
+    "@playwright/test": "1.64.1",
+    "lefthook": "2.2.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}
