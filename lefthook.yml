@@ -7,4 +7,4 @@ pre-commit:
     types:
       run: npx tsc -b
     secrets:
-      run: gitleaks protect --staged --redact
+      run: npm run secrets -- protect --staged --redact
