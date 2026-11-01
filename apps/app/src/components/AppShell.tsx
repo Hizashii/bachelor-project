@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import type { Locale } from "../i18n";
 import { getCopy } from "../i18n";
 
@@ -11,25 +11,19 @@ type AppShellProps = {
 
 export function AppShell({ locale, onLocaleChange, children }: AppShellProps) {
   const copy = getCopy(locale);
+  const isCarrierPortal = useLocation().pathname === "/carriers";
 
   return (
     <div className="app-shell">
-      <header className="topbar">
+      <header className={`topbar ${isCarrierPortal ? "portal-topbar" : ""}`}>
         <NavLink className="brand" to="/compare" aria-label="Freight Desk home">
           Slinkert &amp; Aarøe
         </NavLink>
-        <nav className="primary-nav" aria-label="Primary navigation">
-          <span className="nav-link nav-link-muted">{copy.overview}</span>
-          <span className="nav-link nav-link-muted">{copy.upload}</span>
-          <NavLink className="nav-link" to="/compare">
-            {copy.compare}
-          </NavLink>
-          <span className="nav-link nav-link-muted">{copy.invoices}</span>
-          <span className="nav-link nav-link-muted">{copy.calculator}</span>
-          <NavLink className="nav-link" to="/carriers">
-            {copy.carriers}
-          </NavLink>
-        </nav>
+        {isCarrierPortal ? (
+          <span className="portal-title">{copy.portalTitle}</span>
+        ) : (
+          <PrimaryNav copy={copy} />
+        )}
         <fieldset className="language-switch">
           <legend className="sr-only">{copy.language}</legend>
           <button
@@ -47,8 +41,33 @@ export function AppShell({ locale, onLocaleChange, children }: AppShellProps) {
             EN
           </button>
         </fieldset>
+        {isCarrierPortal ? (
+          <div className="session-label">
+            <span>{copy.loggedInAs} Transportør A</span>
+            <button className="session-link" type="button">
+              {copy.logOut}
+            </button>
+          </div>
+        ) : null}
       </header>
       <main>{children}</main>
     </div>
+  );
+}
+
+function PrimaryNav({ copy }: { copy: ReturnType<typeof getCopy> }) {
+  return (
+    <nav className="primary-nav" aria-label="Primary navigation">
+      <span className="nav-link nav-link-muted">{copy.overview}</span>
+      <span className="nav-link nav-link-muted">{copy.upload}</span>
+      <NavLink className="nav-link" to="/compare">
+        {copy.compare}
+      </NavLink>
+      <span className="nav-link nav-link-muted">{copy.invoices}</span>
+      <span className="nav-link nav-link-muted">{copy.calculator}</span>
+      <NavLink className="nav-link" to="/carriers">
+        {copy.carriers}
+      </NavLink>
+    </nav>
   );
 }
