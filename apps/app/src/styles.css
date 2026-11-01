@@ -79,6 +79,8 @@ a {
   border-radius: 999px;
   display: flex;
   flex: 0 0 auto;
+  margin: 0;
+  min-inline-size: 0;
   padding: 0.15rem;
 }
 .language {
@@ -380,6 +382,280 @@ h1 {
   clip: rect(0, 0, 0, 0);
 }
 
+.portal-topbar {
+  gap: 0.8rem;
+}
+.portal-title {
+  color: #d9a94e;
+  font-size: 1.1rem;
+}
+.portal-topbar .language-switch {
+  margin-left: auto;
+}
+.session-label {
+  align-items: center;
+  color: #d9e0e7;
+  display: flex;
+  font-size: 0.85rem;
+  gap: 1.3rem;
+  margin-left: 0.6rem;
+  white-space: nowrap;
+}
+.session-link {
+  background: transparent;
+  border: 0;
+  color: #fff;
+  padding: 0;
+  text-decoration: underline;
+}
+.portal-screen {
+  margin: 0 auto;
+  max-width: 1220px;
+  padding: 3.1rem 2.5rem 4rem;
+}
+.portal-heading {
+  margin-bottom: 2.2rem;
+}
+.portal-subtitle {
+  color: #4f6276;
+  font-size: 1.05rem;
+  margin-bottom: 0;
+}
+.excel-upload {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+}
+.excel-upload h2 {
+  font-size: 1.05rem;
+  margin-bottom: 0.25rem;
+}
+.excel-upload p {
+  color: #4f6276;
+  margin-bottom: 0;
+}
+.upload-status {
+  color: #14766f;
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-top: 0.45rem;
+}
+.file-input {
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+.portal-step {
+  margin-bottom: 2.8rem;
+}
+.step-heading {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.15rem;
+}
+.step-number {
+  align-items: center;
+  background: #a17a31;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-weight: 700;
+  height: 2.2rem;
+  justify-content: center;
+  width: 2.2rem;
+}
+.step-heading h2 {
+  font-size: clamp(1.45rem, 2.6vw, 1.8rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+.step-hint {
+  color: #637286;
+  font-size: 0.9rem;
+}
+.method-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(5, 1fr);
+}
+.method-card {
+  background: #fff;
+  border: 2px solid #d4d0c9;
+  border-radius: 6px;
+  color: #102b44;
+  min-height: 121px;
+  padding: 1.15rem 1rem;
+  text-align: left;
+}
+.method-card strong {
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 0.4rem;
+}
+.method-card span {
+  color: #53677a;
+  display: block;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+.method-card.active {
+  background: #0d263e;
+  border-color: #c4973d;
+  color: #fff;
+}
+.zone-layout {
+  align-items: start;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 3fr) minmax(250px, 1fr);
+}
+.zone-card {
+  overflow: hidden;
+  padding: 0;
+}
+.zone-header,
+.zone-row {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr 1fr;
+  padding: 0.7rem 1.4rem;
+}
+.zone-header {
+  background: #0d263e;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  min-height: 46px;
+  text-transform: uppercase;
+}
+.zone-row {
+  border-bottom: 1px solid #e4e0d9;
+}
+.zone-row input,
+.price-grid-row input {
+  background: #fff;
+  border: 1px solid #c9c0b3;
+  border-radius: 4px;
+  color: #102b44;
+  font: inherit;
+  min-width: 0;
+  padding: 0.68rem 0.75rem;
+  width: 100%;
+}
+.zone-row input:focus,
+.price-grid-row input:focus {
+  border-color: #a17a31;
+  outline: 3px solid rgb(161 122 49 / 18%);
+}
+.add-row {
+  margin: 1rem 1.4rem;
+  min-height: 2.8rem;
+}
+.validation-card {
+  background: #fff;
+  border: 1px solid #d4d0c9;
+  border-radius: 6px;
+  padding: 1.45rem 1.35rem;
+}
+.validation-card h3 {
+  font-size: 1.03rem;
+  margin-bottom: 1rem;
+}
+.validation-card p {
+  align-items: start;
+  display: flex;
+  gap: 0.65rem;
+  line-height: 1.4;
+  margin-bottom: 0.85rem;
+}
+.validation-icon {
+  font-weight: 800;
+}
+.check-pass {
+  color: #123d52;
+}
+.check-pass .validation-icon {
+  color: #11766e;
+}
+.check-fail {
+  color: #8b3d2a;
+}
+.check-fail .validation-icon {
+  color: #b04a32;
+}
+.validation-card small {
+  color: #8b3d2a;
+  display: block;
+  line-height: 1.45;
+  margin-top: 1rem;
+}
+.price-card {
+  overflow-x: auto;
+  padding: 0;
+}
+.price-grid-row {
+  align-items: center;
+  border-bottom: 1px solid #e4e0d9;
+  column-gap: 0.7rem;
+  display: grid;
+  grid-template-columns: 9.5rem repeat(8, minmax(85px, 1fr));
+  min-width: 900px;
+  padding: 0.55rem 1rem;
+}
+.price-grid-row:last-child {
+  border-bottom: 0;
+}
+.price-grid-header {
+  background: #0d263e;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  min-height: 46px;
+  text-transform: uppercase;
+}
+.price-grid-row strong {
+  font-size: 0.88rem;
+}
+.price-grid-row input {
+  color: #69778a;
+  text-align: right;
+}
+.portal-footer {
+  align-items: center;
+  border-top: 1px solid #d4d0c9;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1.5rem;
+}
+.button-primary {
+  background: #0d263e;
+  border: 1px solid #0d263e;
+  color: #fff;
+  min-width: 150px;
+}
+.button-primary:hover,
+.button-primary:focus-visible {
+  background: #183b5b;
+}
+.saved-message {
+  color: #14766f;
+  font-weight: 700;
+  margin-right: 1.25rem;
+}
+.method-card.active span {
+  color: #d6dee6;
+}
+
 @media (max-width: 980px) {
   .topbar {
     flex-wrap: wrap;
@@ -407,6 +683,16 @@ h1 {
   .button-secondary,
   .button-selected {
     min-width: 7.5rem;
+  }
+  .method-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .portal-topbar .language-switch {
+    margin-left: auto;
+  }
+  .session-label {
+    order: 4;
+    width: 100%;
   }
 }
 
@@ -439,5 +725,28 @@ h1 {
   }
   .comparison-notes {
     grid-template-columns: 1fr;
+  }
+  .portal-screen {
+    padding-inline: 1.25rem;
+    padding-top: 2rem;
+  }
+  .excel-upload {
+    align-items: start;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .method-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .zone-layout {
+    grid-template-columns: 1fr;
+  }
+  .step-heading {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .step-hint {
+    margin-left: 3rem;
+    width: 100%;
   }
 }
