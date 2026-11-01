@@ -13,6 +13,20 @@ declare module "react-dom/client" {
   };
 }
 
+declare module "react-router" {
+  export const BrowserRouter: (props: { children?: unknown }) => unknown;
+  export const Navigate: (props: { to: string; replace?: boolean }) => unknown;
+  export const NavLink: (props: {
+    to: string;
+    className?: string;
+    children?: unknown;
+    "aria-label"?: string;
+  }) => unknown;
+  export const Route: (props: { path: string; element: unknown }) => unknown;
+  export const Routes: (props: { children?: unknown }) => unknown;
+  export function useLocation(): { pathname: string };
+}
+
 declare module "*.css";
 
 declare module "react/jsx-runtime" {
