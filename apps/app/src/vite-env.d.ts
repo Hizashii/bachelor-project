@@ -1,6 +1,10 @@
 // This file supplies the small browser declarations needed before app type packages are added.
 declare module "react" {
   export type ReactElement = unknown;
+  export type ReactNode = unknown;
+  export function useState<T>(
+    initialValue: T,
+  ): [T, (value: T | ((currentValue: T) => T)) => void];
 }
 
 declare module "react-dom/client" {
