@@ -1,25 +1,28 @@
-import { useState } from "react";
+import type {
+  PricingUnit,
+  RoadPriceList,
+  ZoneRange,
+} from "@freight-desk/shared";
+import { validateZoneRanges } from "@freight-desk/shared";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 
-type PricingMethod = "fixed" | "weight" | "pallet" | "ldm" | "cbm";
-
-type ZoneRow = {
-  from: string;
-  to: string;
-  name: string;
-};
-
 type PriceRow = {
-  band: string;
+  from: number;
+  to: number | null;
   values: string[];
 };
 
-type InputChange = {
-  currentTarget: HTMLInputElement;
+type CarrierPortalProps = {
+  locale: Locale;
+  onSubmit: (submission: RoadPriceList) => void;
 };
 
-const initialZones: ZoneRow[] = [
+type InputChange = { currentTarget: HTMLInputElement };
+
+const initialZones: ZoneRange[] = [
   { from: "00", to: "26", name: "Zone 1" },
   { from: "30", to: "36", name: "Zone 2" },
   { from: "37", to: "39", name: "Zone 3" },
@@ -31,42 +34,30 @@ const initialZones: ZoneRow[] = [
 ];
 
 const initialPrices: PriceRow[] = [
-  {
-    band: "1 til 50",
-    values: ["0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00"],
-  },
-  {
-    band: "51 til 100",
-    values: ["0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00"],
-  },
-  {
-    band: "101 til 200",
-    values: ["0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00"],
-  },
-  {
-    band: "201 til 300",
-    values: ["0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00"],
-  },
-  {
-    band: "301 til 500",
-    values: ["0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00", "0,00"],
-  },
+  { from: 1, to: 50, values: emptyPrices() },
+  { from: 51, to: 100, values: emptyPrices() },
+  { from: 101, to: 200, values: emptyPrices() },
+  { from: 201, to: 300, values: emptyPrices() },
+  { from: 301, to: 500, values: emptyPrices() },
 ];
 
-type CarrierPortalProps = {
-  locale: Locale;
-};
+function emptyPrices(): string[] {
+  return Array.from({ length: 8 }, () => "0,00");
+}
 
-export function CarrierPortal({ locale }: CarrierPortalProps) {
+export function CarrierPortal({ locale, onSubmit }: CarrierPortalProps) {
   const copy = getCopy(locale);
-  const [method, setMethod] = useState<PricingMethod>("weight");
-  const [zones, setZones] = useState<ZoneRow[]>(initialZones);
+  const navigate = useNavigate();
+  const [unit, setUnit] = useState<PricingUnit>("KG");
+  const [zones, setZones] = useState<ZoneRange[]>(initialZones);
   const [prices, setPrices] = useState<PriceRow[]>(initialPrices);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState(false);
   const [saved, setSaved] = useState(false);
-  const validation = validateZones(zones);
+  const [submitError, setSubmitError] = useState(false);
+  const validation = useMemo(() => validateZoneRanges(zones), [zones]);
 
-  function updateZone(index: number, field: keyof ZoneRow, value: string) {
+  function updateZone(index: number, field: keyof ZoneRange, value: string) {
     setSaved(false);
     setZones((current) =>
       current.map((zone, zoneIndex) =>
@@ -88,16 +79,35 @@ export function CarrierPortal({ locale }: CarrierPortalProps) {
     setPrices((current) =>
       current.map((row, index) => {
         if (index !== rowIndex) return row;
-        const values = row.values.map((price, priceIndex) =>
-          priceIndex === zoneIndex ? value : price,
-        );
-        return { ...row, values };
+        return {
+          ...row,
+          values: row.values.map((price, priceIndex) =>
+            priceIndex === zoneIndex ? value : price,
+          ),
+        };
       }),
     );
   }
 
-  function savePortal() {
+  function saveDraft() {
     setSaved(true);
+    setSubmitError(false);
+  }
+
+  function submitPrices() {
+    if (!validation.valid) {
+      setSubmitError(true);
+      return;
+    }
+    onSubmit({
+      id: crypto.randomUUID(),
+      carrierName: "Transportør A",
+      unit,
+      zones,
+      priceBands: prices,
+      submittedAt: new Date().toISOString(),
+    });
+    navigate("/carriers/sent");
   }
 
   return (
@@ -106,16 +116,23 @@ export function CarrierPortal({ locale }: CarrierPortalProps) {
         <p className="eyebrow">{copy.portalEyebrow}</p>
         <h1>{copy.portalTitleHeading}</h1>
         <p className="portal-subtitle">{copy.portalSubtitle}</p>
+        <span className="road-only-badge">{copy.roadOnly}</span>
       </section>
-      <ExcelUpload copy={copy} fileName={fileName} onUpload={setFileName} />
-      <MethodStep
+      <ExcelUpload
         copy={copy}
-        method={method}
-        onChange={(next) => {
-          setMethod(next);
-          setSaved(false);
+        fileName={fileName}
+        uploadError={uploadError}
+        onUpload={(name) => {
+          if (!/\.(xlsx|csv)$/i.test(name)) {
+            setFileName(null);
+            setUploadError(true);
+            return;
+          }
+          setFileName(name);
+          setUploadError(false);
         }}
       />
+      <MethodStep copy={copy} unit={unit} onChange={setUnit} />
       <ZoneStep
         copy={copy}
         zones={zones}
@@ -127,17 +144,24 @@ export function CarrierPortal({ locale }: CarrierPortalProps) {
         copy={copy}
         zones={zones}
         prices={prices}
-        method={method}
         onChange={updatePrice}
       />
+      {submitError ? <p className="form-error">{copy.zoneError}</p> : null}
       <div className="portal-footer">
         {saved ? <span className="saved-message">✓ {copy.saved}</span> : null}
         <button
-          className="button button-primary"
+          className="button button-secondary"
           type="button"
-          onClick={savePortal}
+          onClick={saveDraft}
         >
           {copy.saveChanges}
+        </button>
+        <button
+          className="button button-primary"
+          type="button"
+          onClick={submitPrices}
+        >
+          {copy.submitPrices}
         </button>
       </div>
     </div>
@@ -147,16 +171,21 @@ export function CarrierPortal({ locale }: CarrierPortalProps) {
 function ExcelUpload({
   copy,
   fileName,
+  uploadError,
   onUpload,
 }: {
   copy: Copy;
   fileName: string | null;
+  uploadError: boolean;
   onUpload: (name: string) => void;
 }) {
   return (
     <section className="excel-upload white-card">
       <div>
         <h2>{copy.uploadExisting}</h2>
+        {uploadError ? (
+          <span className="form-error">{copy.uploadTypeError}</span>
+        ) : null}
         <p>
           {fileName
             ? `${copy.uploadedFile}: ${fileName}`
@@ -185,19 +214,18 @@ function ExcelUpload({
 
 function MethodStep({
   copy,
-  method,
+  unit,
   onChange,
 }: {
   copy: Copy;
-  method: PricingMethod;
-  onChange: (method: PricingMethod) => void;
+  unit: PricingUnit;
+  onChange: (unit: PricingUnit) => void;
 }) {
-  const methods: { id: PricingMethod; title: string; detail: string }[] = [
-    { id: "fixed", title: copy.fixed, detail: copy.fixedDetail },
-    { id: "weight", title: copy.weight, detail: copy.weightDetail },
-    { id: "pallet", title: copy.pallet, detail: copy.palletDetail },
-    { id: "ldm", title: copy.ldm, detail: copy.ldmDetail },
-    { id: "cbm", title: copy.cbm, detail: copy.cbmDetail },
+  const methods: { id: PricingUnit; title: string; detail: string }[] = [
+    { id: "KG", title: copy.kg, detail: copy.kgDetail },
+    { id: "CBM", title: copy.cbm, detail: copy.cbmDetail },
+    { id: "LDM", title: copy.ldm, detail: copy.ldmDetail },
+    { id: "PLL", title: copy.pll, detail: copy.pllDetail },
   ];
 
   return (
@@ -207,11 +235,11 @@ function MethodStep({
         title={copy.pricingStep}
         hint={copy.pricingHint}
       />
-      <div className="method-grid">
+      <div className="method-grid method-grid-four">
         {methods.map((item) => (
           <button
             key={item.id}
-            className={`method-card ${method === item.id ? "active" : ""}`}
+            className={`method-card ${unit === item.id ? "active" : ""}`}
             type="button"
             onClick={() => onChange(item.id)}
           >
@@ -224,15 +252,19 @@ function MethodStep({
   );
 }
 
-type ZoneStepProps = {
+function ZoneStep({
+  copy,
+  zones,
+  validation,
+  onChange,
+  onAdd,
+}: {
   copy: Copy;
-  zones: ZoneRow[];
-  validation: ZoneValidation;
-  onChange: (index: number, field: keyof ZoneRow, value: string) => void;
+  zones: ZoneRange[];
+  validation: ReturnType<typeof validateZoneRanges>;
+  onChange: (index: number, field: keyof ZoneRange, value: string) => void;
   onAdd: () => void;
-};
-
-function ZoneStep({ copy, zones, validation, onChange, onAdd }: ZoneStepProps) {
+}) {
   return (
     <section className="portal-step">
       <StepHeading number="2" title={copy.zonesStep} hint={copy.zonesHint} />
@@ -244,31 +276,24 @@ function ZoneStep({ copy, zones, validation, onChange, onAdd }: ZoneStepProps) {
             <span>{copy.zone}</span>
           </div>
           {zones.map((zone, index) => (
-            <div className="zone-row" key={`${zone.name}-${zone.from}`}>
-              <input
-                aria-label={`${copy.fromPostcode} ${index + 1}`}
+            <div
+              className="zone-row"
+              key={`${zone.name}-${zone.from}-${zone.to}`}
+            >
+              <ZoneInput
+                label={`${copy.fromPostcode} ${index + 1}`}
                 value={zone.from}
-                maxLength={2}
-                inputMode="numeric"
-                onChange={(event: InputChange) =>
-                  onChange(index, "from", event.currentTarget.value)
-                }
+                onChange={(value) => onChange(index, "from", value)}
               />
-              <input
-                aria-label={`${copy.toPostcode} ${index + 1}`}
+              <ZoneInput
+                label={`${copy.toPostcode} ${index + 1}`}
                 value={zone.to}
-                maxLength={2}
-                inputMode="numeric"
-                onChange={(event: InputChange) =>
-                  onChange(index, "to", event.currentTarget.value)
-                }
+                onChange={(value) => onChange(index, "to", value)}
               />
-              <input
-                aria-label={`${copy.zone} ${index + 1}`}
+              <ZoneInput
+                label={`${copy.zone} ${index + 1}`}
                 value={zone.name}
-                onChange={(event: InputChange) =>
-                  onChange(index, "name", event.currentTarget.value)
-                }
+                onChange={(value) => onChange(index, "name", value)}
               />
             </div>
           ))}
@@ -286,12 +311,32 @@ function ZoneStep({ copy, zones, validation, onChange, onAdd }: ZoneStepProps) {
   );
 }
 
+function ZoneInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <input
+      aria-label={label}
+      value={value}
+      maxLength={2}
+      inputMode="numeric"
+      onChange={(event: InputChange) => onChange(event.currentTarget.value)}
+    />
+  );
+}
+
 function ZoneValidation({
   copy,
   validation,
 }: {
   copy: Copy;
-  validation: ZoneValidation;
+  validation: ReturnType<typeof validateZoneRanges>;
 }) {
   const messages = [
     [validation.noOverlaps, copy.noOverlaps],
@@ -315,6 +360,49 @@ function ZoneValidation({
   );
 }
 
+function PriceStep({
+  copy,
+  zones,
+  prices,
+  onChange,
+}: {
+  copy: Copy;
+  zones: ZoneRange[];
+  prices: PriceRow[];
+  onChange: (rowIndex: number, zoneIndex: number, value: string) => void;
+}) {
+  return (
+    <section className="portal-step">
+      <StepHeading number="3" title={copy.pricesStep} hint={copy.pricesHint} />
+      <div className="price-card white-card">
+        <div className="price-grid-row price-grid-header">
+          <span>{copy.weightBand}</span>
+          {zones.map((zone) => (
+            <span key={zone.name}>{zone.name}</span>
+          ))}
+        </div>
+        {prices.map((row, rowIndex) => (
+          <div className="price-grid-row" key={`${row.from}-${row.to}`}>
+            <strong>
+              {row.to ? `${row.from} til ${row.to}` : `${row.from}+`}
+            </strong>
+            {zones.map((zone, zoneIndex) => (
+              <input
+                key={`${row.from}-${zone.name}`}
+                aria-label={`${row.from} ${row.to ?? "plus"} ${zone.name}`}
+                value={row.values[zoneIndex] ?? ""}
+                onChange={(event: InputChange) =>
+                  onChange(rowIndex, zoneIndex, event.currentTarget.value)
+                }
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function StepHeading({
   number,
   title,
@@ -330,85 +418,5 @@ function StepHeading({
       <h2>{title}</h2>
       <span className="step-hint">{hint}</span>
     </div>
-  );
-}
-
-type ZoneValidation = {
-  valid: boolean;
-  noOverlaps: boolean;
-  validRanges: boolean;
-  allMapped: boolean;
-};
-
-function validateZones(zones: ZoneRow[]): ZoneValidation {
-  const ranges = zones
-    .map((zone) => ({ from: Number(zone.from), to: Number(zone.to) }))
-    .filter((zone) => Number.isFinite(zone.from) && Number.isFinite(zone.to));
-  const validRanges = zones.every(
-    (zone) =>
-      zone.from !== "" &&
-      zone.to !== "" &&
-      Number(zone.from) <= Number(zone.to),
-  );
-  const noOverlaps = ranges.every((range, index) =>
-    ranges
-      .slice(index + 1)
-      .every((other) => range.to < other.from || other.to < range.from),
-  );
-  const allMapped = zones.every(
-    (zone) => zone.from !== "" && zone.to !== "" && zone.name.trim() !== "",
-  );
-  return {
-    valid: validRanges && noOverlaps && allMapped,
-    noOverlaps,
-    validRanges,
-    allMapped,
-  };
-}
-
-function PriceStep({
-  copy,
-  zones,
-  prices,
-  method,
-  onChange,
-}: {
-  copy: Copy;
-  zones: ZoneRow[];
-  prices: PriceRow[];
-  method: PricingMethod;
-  onChange: (rowIndex: number, zoneIndex: number, value: string) => void;
-}) {
-  return (
-    <section className="portal-step">
-      <StepHeading
-        number="3"
-        title={`${copy.pricesStep} ${method === "weight" ? copy.weight.toLowerCase() : ""}`}
-        hint={copy.pricesHint}
-      />
-      <div className="price-card white-card">
-        <div className="price-grid-row price-grid-header">
-          <span>{copy.weightBand}</span>
-          {zones.map((zone) => (
-            <span key={zone.name}>{zone.name}</span>
-          ))}
-        </div>
-        {prices.map((row, rowIndex) => (
-          <div className="price-grid-row" key={row.band}>
-            <strong>{row.band}</strong>
-            {row.values.map((value, zoneIndex) => (
-              <input
-                key={`${row.band}-${zones[zoneIndex]?.name ?? "zone"}`}
-                aria-label={`${row.band} ${zones[zoneIndex]?.name ?? zoneIndex + 1}`}
-                value={value}
-                onChange={(event: InputChange) =>
-                  onChange(rowIndex, zoneIndex, event.currentTarget.value)
-                }
-              />
-            ))}
-          </div>
-        ))}
-      </div>
-    </section>
   );
 }

@@ -5,6 +5,10 @@ declare module "react" {
   export function useState<T>(
     initialValue: T,
   ): [T, (value: T | ((currentValue: T) => T)) => void];
+  export function useMemo<T>(
+    factory: () => T,
+    dependencies: readonly unknown[],
+  ): T;
 }
 
 declare module "react-dom/client" {
@@ -22,9 +26,15 @@ declare module "react-router" {
     children?: unknown;
     "aria-label"?: string;
   }) => unknown;
+  export const Link: (props: {
+    to: string;
+    className?: string;
+    children?: unknown;
+  }) => unknown;
   export const Route: (props: { path: string; element: unknown }) => unknown;
   export const Routes: (props: { children?: unknown }) => unknown;
   export function useLocation(): { pathname: string };
+  export function useNavigate(): (to: string) => void;
 }
 
 declare module "*.css";

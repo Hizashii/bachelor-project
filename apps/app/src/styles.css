@@ -750,3 +750,381 @@ h1 {
     width: 100%;
   }
 }
+
+.admin-badge {
+  align-items: center;
+  background: #917137;
+  border-radius: 3px;
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  padding: 0.35rem 0.6rem;
+}
+
+.method-grid-four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.road-only-badge {
+  background: #f7f1e4;
+  border: 1px solid #dcc89c;
+  border-radius: 999px;
+  color: #6b531f;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-top: 1rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.form-error {
+  background: #fff1ed;
+  border: 1px solid #c98872;
+  border-radius: 6px;
+  color: #8b3d2a;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+  padding: 0.9rem 1rem;
+}
+
+.portal-footer {
+  gap: 0.8rem;
+}
+
+.sent-screen,
+.admin-screen {
+  margin: 0 auto;
+  max-width: 1000px;
+  padding: 3rem 2.5rem 4.5rem;
+}
+
+.sent-screen {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sent-check {
+  align-items: center;
+  background: #1f6f6b;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-size: 2.5rem;
+  font-weight: 700;
+  height: 5rem;
+  justify-content: center;
+  width: 5rem;
+}
+
+.sent-copy {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sent-copy h1,
+.admin-heading h1 {
+  margin-bottom: 0;
+}
+
+.sent-copy p,
+.sent-copy small,
+.admin-heading p {
+  color: #3f4f60;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.sent-copy small {
+  font-size: 0.9rem;
+}
+
+.sent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.security-banner {
+  align-items: center;
+  background: #0d2238;
+  border-radius: 6px;
+  color: #fff;
+  display: flex;
+  gap: 0.75rem;
+  line-height: 1.5;
+  max-width: 720px;
+  padding: 1rem 1.2rem;
+}
+
+.lock-icon {
+  color: #c9a66b;
+  flex: 0 0 auto;
+  font-size: 1.35rem;
+}
+
+.demo-link {
+  align-items: center;
+  border: 2px dashed #917137;
+  border-radius: 6px;
+  color: #3f4f60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  max-width: 720px;
+  padding: 1rem 1.2rem;
+  width: 100%;
+}
+
+.demo-link b {
+  color: #6f5528;
+}
+
+.button-gold {
+  background: #917137;
+  border: 1px solid #917137;
+  color: #fff;
+}
+
+.admin-heading {
+  align-items: flex-end;
+  display: flex;
+  gap: 1.5rem;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.admin-heading section {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-heading small {
+  color: #6e7b89;
+}
+
+.submission-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.submission-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #cfcac3;
+  border-left: 6px solid #917137;
+  border-radius: 6px;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 7rem 12rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.submission-row.is-downloaded {
+  border-left-color: #cfcac3;
+}
+
+.submission-info {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.submission-info strong {
+  font-size: 1.35rem;
+}
+
+.submission-row .submission-info span {
+  color: #4a5a6b;
+  font-size: 0.9rem;
+}
+
+.zone-warning {
+  color: #b4570a;
+  font-size: 0.9rem;
+}
+
+.status-new {
+  color: #b4570a;
+}
+
+.status-downloaded {
+  color: #1f6f6b;
+}
+
+.button-download {
+  background: #0d2238;
+  border: 2px solid #0d2238;
+  color: #fff;
+  min-width: 11rem;
+}
+
+.button-download:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.template-note {
+  color: #3f4f60;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 1.75rem 0 0;
+}
+
+.admin-security {
+  margin-top: 1.75rem;
+  max-width: none;
+}
+
+.admin-sample {
+  margin-top: 1.75rem;
+}
+
+@media (max-width: 720px) {
+  .sent-screen,
+  .admin-screen {
+    padding-inline: 1.25rem;
+    padding-top: 2rem;
+  }
+
+  .method-grid-four {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .submission-row {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+
+  .button-download {
+    width: 100%;
+  }
+}
+
+.offer-actions {
+  border: 0;
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+.offer-actions .button {
+  min-width: 0;
+  width: 100%;
+}
+
+.button-feedback {
+  background: #fff;
+  border: 1px solid #917137;
+  color: #6f5528;
+}
+
+.button-feedback:hover,
+.button-feedback:focus-visible {
+  background: #f7f1e4;
+}
+
+.button-feedback:disabled,
+.feedback-actions .button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.feedback-notice {
+  align-items: center;
+  background: #e8f3f1;
+  border: 1px solid #9bc9c1;
+  border-radius: 6px;
+  color: #1f5f59;
+  display: flex;
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  padding: 0.9rem 1.15rem;
+}
+
+.feedback-notice div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.feedback-notice span:last-child {
+  color: #496a68;
+  font-size: 0.9rem;
+}
+
+.feedback-backdrop {
+  align-items: center;
+  background: rgb(13 34 56 / 48%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 10;
+}
+
+.feedback-dialog {
+  background: #fff;
+  border: 1px solid #cfcac3;
+  border-radius: 6px;
+  box-shadow: 0 24px 70px rgb(13 34 56 / 24%);
+  display: grid;
+  gap: 1rem;
+  max-width: 560px;
+  padding: 2rem;
+  width: 100%;
+}
+
+.feedback-dialog h2,
+.feedback-dialog p {
+  margin: 0;
+}
+
+.feedback-dialog label {
+  font-weight: 700;
+}
+
+.feedback-dialog textarea {
+  border: 1px solid #c9c0b3;
+  border-radius: 4px;
+  color: #102b44;
+  font: inherit;
+  min-height: 8rem;
+  padding: 0.8rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.feedback-dialog textarea:focus {
+  border-color: #a17a31;
+  outline: 3px solid rgb(161 122 49 / 18%);
+}
+
+.feedback-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+@media (min-width: 981px) {
+  .offer-row {
+    grid-template-columns: 1.15fr 1.8fr 0.88fr 0.82fr 0.95fr 14rem;
+  }
+}
+
+@media (max-width: 980px) {
+  .offer-row {
+    grid-template-columns: 1.1fr 1.4fr 0.85fr 0.8fr 0.85fr 11rem;
+    min-width: 930px;
+  }
+}
