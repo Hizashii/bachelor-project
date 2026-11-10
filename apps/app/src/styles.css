@@ -12,6 +12,140 @@
 * {
   box-sizing: border-box;
 }
+
+.auth-loading-screen {
+  align-items: center;
+  background: #eeece8;
+  color: #4f6276;
+  display: flex;
+  min-height: 100vh;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth-screen {
+  align-items: center;
+  background:
+    radial-gradient(circle at top right, rgb(215 165 70 / 18%), transparent 34rem),
+    #eeece8;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.login-card {
+  background: #fff;
+  border: 1px solid #d4d0c9;
+  border-radius: 8px;
+  box-shadow: 0 18px 50px rgb(13 38 62 / 9%);
+  max-width: 470px;
+  padding: 3rem;
+  width: 100%;
+}
+
+.login-card h1 {
+  font-size: clamp(2rem, 5vw, 2.7rem);
+  margin-bottom: 0.85rem;
+}
+
+.auth-lede {
+  color: #4f6276;
+  line-height: 1.6;
+  margin-bottom: 1.6rem;
+}
+
+.auth-submit {
+  text-align: center;
+  width: 100%;
+}
+
+.auth-error {
+  background: #f9e8e5;
+  border: 1px solid #d9aaa3;
+  border-radius: 4px;
+  color: #8c342b;
+  line-height: 1.45;
+  margin-bottom: 1.25rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.auth-loading {
+  color: #6d7d8c;
+  margin: 1.5rem 0 0;
+}
+
+.mock-login {
+  border-top: 1px solid #e2dfd9;
+  margin-top: 1.8rem;
+  padding-top: 1.5rem;
+}
+
+.mock-login-label {
+  color: #866324;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.mock-login-note {
+  color: #6d7d8c;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.mock-identity {
+  align-items: center;
+  border: 1px solid #d4d0c9;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.65rem;
+  padding: 0.85rem 1rem;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.mock-identity:hover,
+.mock-identity:focus-visible {
+  background: #f7f1e4;
+  border-color: #b58a3b;
+}
+
+.mock-identity span:first-child {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.mock-identity small {
+  color: #6d7d8c;
+  font-size: 0.78rem;
+}
+
+.session-label {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.9rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.session-link {
+  background: transparent;
+  border: 0;
+  color: #e0b45d;
+  font-size: 0.76rem;
+  font-weight: 750;
+  padding: 0;
+}
+
+.session-link:hover,
+.session-link:focus-visible {
+  color: #fff;
+}
 body {
   margin: 0;
   min-width: 320px;
