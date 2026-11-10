@@ -4,6 +4,8 @@ dist/
 .astro/
 *.tsbuildinfo
 coverage/
-.env.local
+.env
+.env.*
+!.env.example
 playwright-report/
 test-results/

@@ -1,0 +1,9 @@
+packages:
+  - apps/web
+  - apps/api
+  - packages/shared
+  - packages/storage
+  - packages/pricing
+
+allowBuilds:
+  esbuild: true
