@@ -8,6 +8,8 @@
     "rootDir": "src",
     "composite": true,
     "declaration": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]
