@@ -7,6 +7,9 @@ export default defineConfig({
       "/api": {
         target: process.env.API_ORIGIN ?? "http://localhost:3000",
       },
+      "/auth": {
+        target: process.env.API_ORIGIN ?? "http://localhost:3000",
+      },
     },
   },
 });

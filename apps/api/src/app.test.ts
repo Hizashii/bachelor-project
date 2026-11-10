@@ -19,6 +19,7 @@ describe("API application boundary", () => {
       expect(response.json()).toEqual({
         status: "ok",
         service: "freight-desk-api",
+        authMode: "mock",
       });
       expect(response.headers["x-content-type-options"]).toBe("nosniff");
       expect(response.headers["x-frame-options"]).toBe("DENY");

@@ -53,6 +53,12 @@ describe("API environment", () => {
       loadApiEnvironment({
         ...localEnvironment,
         NODE_ENV: "production",
+        AUTH_MODE: "entra",
+        ENTRA_TENANT_ID: "tenant",
+        ENTRA_CLIENT_ID: "client",
+        ENTRA_CLIENT_SECRET: "secret",
+        COOKIE_SECURE: "true",
+        SESSION_SECRET: "a-production-secret-with-at-least-32-characters",
       }),
     ).toThrow(/HTTPS/);
   });

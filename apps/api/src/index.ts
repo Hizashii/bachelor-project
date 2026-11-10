@@ -1,7 +1,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildApi } from "./app.ts";
-import { requestPrincipalResolver } from "./auth.ts";
 import { type ApiEnvironment, loadApiEnvironment } from "./config/env.ts";
 import { MicrosoftGraphClient } from "./storage/graphClient.ts";
 import {
@@ -30,11 +29,7 @@ export async function startServer(
   environment: ApiEnvironment = loadApiEnvironment(),
 ) {
   const storage = createStorage(environment);
-  const server = await buildApi({
-    environment,
-    storage,
-    resolvePrincipal: requestPrincipalResolver,
-  });
+  const server = buildApi({ environment, storage });
   await storage.ensureInitialFolders();
   await server.listen({
     host: environment.API_HOST,

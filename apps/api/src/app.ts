@@ -1,7 +1,21 @@
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
-import type { PrincipalResolver } from "./auth.ts";
+import { requireAuth } from "./auth/authorization.ts";
+import { createUserDirectory, type UserDirectory } from "./auth/directory.ts";
+import {
+  EntraIdentityProvider,
+  type IdentityProvider,
+} from "./auth/identity.ts";
+import { principalOf } from "./auth/principal.ts";
+import { registerAuthRoutes } from "./auth/routes.ts";
+import { AuthError, AuthService } from "./auth/service.ts";
+import {
+  type AuthTransactionStore,
+  InMemoryAuthTransactionStore,
+  InMemorySessionStore,
+  type SessionStore,
+} from "./auth/sessions.ts";
 import { type ApiEnvironment, loadApiEnvironment } from "./config/env.ts";
 import { serializeApiError } from "./http/errors.ts";
 import { StorageError } from "./storage/errors.ts";
@@ -10,22 +24,40 @@ import type { StorageAdapter } from "./storage/types.ts";
 
 export type BuildApiOptions = {
   environment?: ApiEnvironment;
+  directory?: UserDirectory;
+  sessions?: SessionStore;
+  transactions?: AuthTransactionStore;
+  identityProvider?: IdentityProvider;
   storage?: StorageAdapter;
-  resolvePrincipal?: PrincipalResolver;
 };
 
-const REQUESTS_PER_MINUTE = 120;
+const REQUESTS_PER_MINUTE = 200;
 
-export async function buildApi(
-  options: BuildApiOptions = {},
-): Promise<FastifyInstance> {
+export function buildApi(options: BuildApiOptions = {}): FastifyInstance {
   const environment = options.environment ?? loadApiEnvironment();
+  const sessions =
+    options.sessions ?? new InMemorySessionStore(environment.SESSION_SECRET);
+  const identityProvider =
+    options.identityProvider ??
+    (environment.AUTH_MODE === "entra"
+      ? new EntraIdentityProvider(environment)
+      : undefined);
+  const authService = new AuthService({
+    environment,
+    directory:
+      options.directory ??
+      createUserDirectory(environment.AUTHORIZED_USERS_JSON),
+    sessions,
+    identityProvider,
+  });
   const server = Fastify({
     logger: environment.NODE_ENV !== "test",
     bodyLimit: environment.MAX_UPLOAD_BYTES,
   });
-  await server.register(cookie);
-  await server.register(rateLimit, {
+
+  server.register(cookie);
+  server.register(rateLimit, {
+    global: true,
     max: REQUESTS_PER_MINUTE,
     timeWindow: "1 minute",
   });
@@ -46,12 +78,22 @@ export async function buildApi(
   server.get("/health", async () => ({
     status: "ok",
     service: "freight-desk-api",
+    authMode: environment.AUTH_MODE,
   }));
 
-  if (options.storage && options.resolvePrincipal) {
+  registerAuthRoutes(server, {
+    environment,
+    authService,
+    transactions: options.transactions ?? new InMemoryAuthTransactionStore(),
+    identityProvider,
+  });
+
+  if (options.storage) {
     registerFileRoutes(server, {
       storage: options.storage,
-      resolvePrincipal: options.resolvePrincipal,
+      preHandler: requireAuth(authService),
+      principalOf: (request) =>
+        request.auth ? principalOf(request.auth.user) : null,
     });
   }
 
@@ -63,6 +105,9 @@ export async function buildApi(
   );
 
   server.setErrorHandler((error, _request, reply) => {
+    if (error instanceof AuthError) {
+      return reply.code(error.statusCode).send({ error: error.code });
+    }
     if (error instanceof StorageError) {
       if (error.retryAfterSeconds !== null) {
         reply.header("Retry-After", String(Math.ceil(error.retryAfterSeconds)));
