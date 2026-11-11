@@ -1,0 +1,8 @@
+// This file registers the comparison routes. Every route needs config.action or config.public.
+import type { FastifyInstance } from "fastify";
+import type { AppDeps } from "../deps.ts";
+
+export function registerComparisonRoutes(
+  _app: FastifyInstance,
+  _deps: AppDeps,
+): void {}
