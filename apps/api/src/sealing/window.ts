@@ -1,11 +1,12 @@
 // This file answers: may a carrier still change or send an offer for this tender?
 // It reads the stored UTC deadline and the server clock, never a browser time.
-// The deadline feature extends this file; other features only call assertTenderAcceptsBids.
+// An open tender found past its deadline is closed here first, so no job has to run in time.
 
 import type { Tender } from "@freight-desk/shared";
 import type { AppDeps } from "../deps.ts";
 import { AppError } from "../errors.ts";
 import { loadTender } from "../tenders/repository.ts";
+import { closeTender, isPastDeadline, SYSTEM_ACTOR } from "./closing.ts";
 
 export async function assertTenderAcceptsBids(
   deps: AppDeps,
@@ -20,7 +21,8 @@ export async function assertTenderAcceptsBids(
       "This tender is not open for offers.",
     );
   }
-  if (deps.clock.now().getTime() >= Date.parse(tender.deadlineUtc)) {
+  if (isPastDeadline(deps, tender)) {
+    await closeTender(deps, tenderId, SYSTEM_ACTOR);
     throw new AppError("DEADLINE_PASSED", "The deadline has passed.");
   }
   return tender;

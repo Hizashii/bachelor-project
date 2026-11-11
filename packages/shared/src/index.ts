@@ -6,4 +6,5 @@ export * from "./offers/validate.ts";
 export * from "./pricing/index.ts";
 export * from "./schemas/business.ts";
 export * from "./schemas/road.ts";
+export * from "./sealing/index.ts";
 export type * from "./types/business.ts";
