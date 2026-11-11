@@ -1,3 +1,4 @@
+export * from "./awards/index.ts";
 export * from "./contracts/api.ts";
 export * from "./contracts/award.ts";
 export * from "./contracts/comparison.ts";
