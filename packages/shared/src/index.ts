@@ -1,4 +1,7 @@
 export * from "./contracts/api.ts";
+export * from "./contracts/award.ts";
+export * from "./contracts/comparison.ts";
+export * from "./contracts/offer.ts";
 export * from "./pricing/index.ts";
 export * from "./schemas/business.ts";
 export * from "./schemas/road.ts";
