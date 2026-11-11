@@ -8,7 +8,11 @@
     "rootDir": "src",
     "composite": true,
     "declaration": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../../packages/shared/tsconfig.json" }]
 }
