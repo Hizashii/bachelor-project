@@ -9,8 +9,11 @@ export function formatDeadline(
   locale: Locale,
 ): string {
   return new Intl.DateTimeFormat(LOCALE_TAG[locale], {
-    dateStyle: "long",
-    timeStyle: "short",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     timeZone,
     timeZoneName: "shortOffset",
   }).format(new Date(utc));
