@@ -1,0 +1,66 @@
+/* Styles for the carrier tender screens only. */
+.carrier-screen {
+  max-width: 52rem;
+}
+.carrier-filter {
+  border: 0;
+  display: flex;
+  gap: 0.5rem;
+  margin: 1.5rem 0;
+  padding: 0;
+}
+.carrier-list {
+  display: grid;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.carrier-card {
+  align-items: center;
+  background: #fff;
+  border-radius: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1.25rem;
+}
+.carrier-card-title {
+  font-size: 1.15rem;
+  margin-bottom: 0.4rem;
+}
+.carrier-muted {
+  color: #4a5f73;
+  margin-bottom: 0.25rem;
+}
+.carrier-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  text-decoration: underline;
+}
+.carrier-facts {
+  background: #fff;
+  border-radius: 6px;
+  display: grid;
+  gap: 0.5rem 1.5rem;
+  grid-template-columns: max-content 1fr;
+  padding: 1.25rem;
+}
+.carrier-facts dt {
+  font-weight: 700;
+}
+.carrier-facts dd {
+  margin: 0;
+}
+.carrier-card a:focus-visible,
+.carrier-back:focus-visible,
+.carrier-filter button:focus-visible {
+  outline: 3px solid #0d263e;
+  outline-offset: 2px;
+}
+@media (max-width: 40rem) {
+  .carrier-facts {
+    grid-template-columns: 1fr;
+  }
+}
