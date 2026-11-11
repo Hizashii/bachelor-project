@@ -12,5 +12,10 @@ the first feature.
 4. Run `npm run check` and `npm test`.
 5. Run `npm run dev` to start the local workspaces.
 
-The repository is deliberately empty of business features. Add each new feature in its
-workspace and keep shared data shapes in `packages/shared`.
+The current API includes an authentication foundation with local mock identities and a
+Microsoft Entra ID BFF path. Read [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) before
+enabling `AUTH_MODE=entra`; production secrets and directory data must stay server-side.
+
+The repository remains deliberately empty of new tender, pricing, calculator, and invoice
+features. Add each new feature in its workspace and keep shared data shapes in
+`packages/shared`.
