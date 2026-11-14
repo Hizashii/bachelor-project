@@ -19,6 +19,7 @@ import type {
   PermissionChecker,
 } from "../contracts/access.ts";
 import type { FileStore } from "../contracts/fileStore.ts";
+import { readTariffGrid } from "./importGrid.ts";
 
 export class TariffAccessError extends Error {}
 export class TariffStateError extends Error {}
@@ -49,6 +50,12 @@ export class TariffService {
     if (!this.deps.permissions.can(context, action, resource)) {
       throw new TariffAccessError("Access denied.");
     }
+  }
+
+  // Reads an uploaded rate sheet for the signed-in carrier. Nothing is saved yet.
+  readGrid(context: AccessContext, localPath: string) {
+    this.allow(context, "tariff:edit", context.organisationId);
+    return readTariffGrid(localPath);
   }
 
   async get(

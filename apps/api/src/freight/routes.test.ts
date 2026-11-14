@@ -12,6 +12,7 @@ import { registerFreightRoutes } from "./routes.ts";
 const users: Record<string, AccessContext> = {
   staff: { userId: "s1", organisationId: "sa", role: "consultant" },
   rival: { userId: "r1", organisationId: "rival", role: "carrier" },
+  carrier: { userId: "c1", organisationId: "carrier-a", role: "carrier" },
 };
 
 function buildApp() {
@@ -114,5 +115,29 @@ describe("freight routes", () => {
       payload: { carriers: [], shipment: {}, extra: true },
     });
     expect(response.statusCode).toBe(400);
+  });
+
+  it("reads a carrier rate sheet into a grid and keeps a blank rate open", async () => {
+    const grid = [
+      "Pris pr. 100 kg;Zone A (00-26)",
+      "0-100;200,50",
+      "100+;",
+      "",
+    ].join("\n");
+    const response = await buildApp().inject({
+      method: "POST",
+      url: "/api/tariffs/import?name=rates.csv",
+      headers: {
+        "x-test-user": "carrier",
+        "content-type": "application/octet-stream",
+      },
+      payload: Buffer.from(grid),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      suggestedMethod: "per_100kg",
+      rates: [{ amountMinor: 20050 }, { amountMinor: null }],
+      ambiguities: [{ code: "blank_rate" }],
+    });
   });
 });

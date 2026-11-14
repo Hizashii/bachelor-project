@@ -19,7 +19,7 @@ import {
 } from "../imports/importService.ts";
 import { MappingError } from "../imports/processShipments.ts";
 import { UnreadableFileError } from "../imports/readRows.ts";
-import { resolveDownload } from "../imports/tempFiles.ts";
+import { removeWorkspace, resolveDownload } from "../imports/tempFiles.ts";
 import type { PricingService } from "../tariffs/pricing.ts";
 import {
   TariffAccessError,
@@ -242,6 +242,21 @@ function registerTariffRoutes(
         .omit({ version: true })
         .parse(request.params);
       return tariffs.listVersions(context, organisationId, tariffId);
+    }),
+  );
+  app.post(
+    "/api/tariffs/import",
+    { bodyLimit: Number.MAX_SAFE_INTEGER },
+    guarded(async (context, request) => {
+      nameQuery.parse(request.query);
+      const { workspace, path } = await receiveUpload(
+        request.body as NodeJS.ReadableStream,
+      );
+      try {
+        return await tariffs.readGrid(context, path);
+      } finally {
+        await removeWorkspace(workspace);
+      }
     }),
   );
   app.put(
