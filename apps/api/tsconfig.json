@@ -7,6 +7,9 @@
     "outDir": "dist",
     "rootDir": "src",
     "composite": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "types": ["node"],
     "declaration": true,
     "skipLibCheck": true
   },
