@@ -9,6 +9,7 @@ import {
   type CleanShipment,
   type ColumnMapping,
   cleanRow,
+  DuplicateTracker,
   type RowIssue,
 } from "@freight-desk/shared";
 import type { AccessContext, PermissionChecker } from "../contracts/access.ts";
@@ -146,12 +147,17 @@ export class ImportService {
       session.inspection.headerRow,
     );
     const rows: { shipment: CleanShipment; issues: RowIssue[] }[] = [];
+    const duplicates = new DuplicateTracker();
     let sourceRow = split.headerRow;
     for await (const cells of split.rows) {
       sourceRow += 1;
-      rows.push(
-        cleanRow(cells, sourceRow, { mapping, headers: split.headers }),
-      );
+      const cleaned = cleanRow(cells, sourceRow, {
+        mapping,
+        headers: split.headers,
+      });
+      const duplicate = duplicates.check(cleaned.shipment.reference, sourceRow);
+      if (duplicate) cleaned.issues.push(duplicate);
+      rows.push(cleaned);
       if (rows.length >= importLimits.previewRows) break;
     }
     return rows;

@@ -6,8 +6,17 @@ const server = await createServer({
   server: {
     host: "127.0.0.1",
     port: 5173,
+    proxy: { "/api": "http://127.0.0.1:3000" },
   },
 });
+
+// Browser tests run against the real routes with an in-memory store, never real data.
+const api = spawn(
+  process.execPath,
+  ["--experimental-strip-types", "tests/e2e/support/testServer.ts"],
+  { stdio: "inherit" },
+);
+await new Promise((resolve) => setTimeout(resolve, 2000));
 
 await server.listen();
 
@@ -22,4 +31,5 @@ const exitCode = await new Promise((resolve) => {
 });
 
 await server.close();
+api.kill();
 process.exit(exitCode);
