@@ -4,8 +4,8 @@
 
 import { join } from "node:path";
 import type { ColumnMapping } from "@freight-desk/shared";
-import type { AccessContext } from "../contracts/access.ts";
-import type { FileStore } from "../contracts/fileStore.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import type { Documents } from "../storage/documents.ts";
 import { type Draft, DraftStore } from "./drafts.ts";
 import type { ImportService } from "./importService.ts";
 import { missingRequiredFields } from "./inspect.ts";
@@ -26,10 +26,10 @@ export class ImportLibrary {
   private readonly drafts: DraftStore;
   private readonly draftIds = new Map<string, string>();
 
-  constructor(imports: ImportService, store: FileStore) {
+  constructor(imports: ImportService, documents: Documents) {
     this.imports = imports;
-    this.mappings = new MappingStore(store);
-    this.drafts = new DraftStore(store);
+    this.mappings = new MappingStore(documents);
+    this.drafts = new DraftStore(documents);
   }
 
   // Opens an upload and prefers a saved column setup over the automatic guess.
@@ -105,6 +105,7 @@ export class ImportLibrary {
 
   // Brings a draft back into a new session with the column choices it was saved with.
   async reopenDraft(context: AccessContext, draftId: string) {
+    this.imports.allow(context, "import:upload");
     const draft = await this.drafts.get(context, draftId);
     if (draft?.status !== "open") throw new DraftNotFoundError();
     const workspace = await createWorkspace();

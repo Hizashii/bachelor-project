@@ -25,15 +25,11 @@ for the repository audit, Microsoft 365 boundaries and data-residency rules.
 The PostgreSQL migration in `database/migrations` is metadata-only. Freight
 files, rows, tariffs and invoice contents must not be added to it.
 
-The compare and carrier screens still use clearly fictional local fixture data.
-Do not treat those fixtures or local component state as a production data
-source. Add each new feature in its workspace and keep validated shared data
-shapes in `packages/shared`.
+Shipment imports, carrier tariffs and price comparison read and write through the
+SharePoint storage; see [docs/INTEGRATION_CONTRACTS.md](docs/INTEGRATION_CONTRACTS.md).
+Add each new feature in its workspace and keep validated shared data shapes in
+`packages/shared`.
 
 The current API includes an authentication foundation with local mock identities and a
 Microsoft Entra ID BFF path. Read [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) before
 enabling `AUTH_MODE=entra`; production secrets and directory data must stay server-side.
-
-The repository remains deliberately empty of new tender, pricing, calculator, and invoice
-features. Add each new feature in its workspace and keep shared data shapes in
-`packages/shared`.

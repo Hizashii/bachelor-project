@@ -1,13 +1,13 @@
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
-import { requireAuth } from "./auth/authorization.ts";
+import { requireAuth, requireCsrfOnWrites } from "./auth/authorization.ts";
 import { createUserDirectory, type UserDirectory } from "./auth/directory.ts";
 import {
   EntraIdentityProvider,
   type IdentityProvider,
 } from "./auth/identity.ts";
-import { principalOf } from "./auth/principal.ts";
+import { accessContextOf, principalOf } from "./auth/principal.ts";
 import { registerAuthRoutes } from "./auth/routes.ts";
 import { AuthError, AuthService } from "./auth/service.ts";
 import {
@@ -17,6 +17,8 @@ import {
   type SessionStore,
 } from "./auth/sessions.ts";
 import { type ApiEnvironment, loadApiEnvironment } from "./config/env.ts";
+import { registerFreightRoutes } from "./freight/routes.ts";
+import { createFreightServices } from "./freight/services.ts";
 import { serializeApiError } from "./http/errors.ts";
 import { StorageError } from "./storage/errors.ts";
 import { registerFileRoutes } from "./storage/routes.ts";
@@ -89,11 +91,16 @@ export function buildApi(options: BuildApiOptions = {}): FastifyInstance {
   });
 
   if (options.storage) {
-    registerFileRoutes(server, {
-      storage: options.storage,
-      preHandler: requireAuth(authService),
-      principalOf: (request) =>
-        request.auth ? principalOf(request.auth.user) : null,
+    const storage = options.storage;
+    server.register(async (scope) => {
+      scope.addHook("preHandler", requireAuth(authService));
+      scope.addHook("preHandler", requireCsrfOnWrites(environment));
+      registerFileRoutes(scope, {
+        storage,
+        principalOf: (request) =>
+          request.auth ? principalOf(accessContextOf(request.auth.user)) : null,
+      });
+      registerFreightRoutes(scope, createFreightServices(storage));
     });
   }
 

@@ -1,54 +1,61 @@
-# Integration contracts: file processing, tariffs and pricing
+# Freight workflows: how they fit the platform
 
-This describes what the freight processing and tariff code needs from the sign-in and
-SharePoint work, and what it gives back. Code lives in `apps/api/src` and
-`packages/shared/src`.
+This describes how file imports, carrier tariffs and price comparison use the sign-in
+and SharePoint storage. Code lives in `apps/api/src` and `packages/shared/src`.
 
-## What this code needs (provided by other work)
+## Sign-in and permissions
 
-| Contract | Where | Provided by |
+- Sign-in is the Entra / mock flow in `apps/api/src/auth`. Every freight route runs behind
+  `requireAuth`, and every route that changes data also checks the CSRF token and the
+  `Origin` header (`requireCsrfOnWrites`).
+- `accessContextOf(user)` (`auth/principal.ts`) turns the signed-in user into the
+  `AccessContext` the workflows use. Carriers belong to their company id; staff belong to
+  Slinkert & Aarøe (`CONSULTANCY_ORGANISATION_ID`).
+- `permissions` (`auth/permissions.ts`) decides what each role may do:
+  - carriers: edit, submit and read the tariffs of their own company only;
+  - consultants and masters: everything, including approving tariffs, shipment imports
+    and price comparison.
+- Carriers can never read another carrier's tariff or price, and cannot use shipment
+  imports.
+
+## Storage
+
+All durable freight data goes through the SharePoint adapter in `apps/api/src/storage`.
+`Documents` (`storage/documents.ts`) adds whole-file and JSON saving on top of it.
+
+- Files are never overwritten. A name that already exists is a conflict. Changed data is
+  saved as a new numbered file (`...-r2.json`), which also detects two people editing at
+  once.
+- Workflow files are stored as Slinkert & Aarøe's own data (`workflowPrincipalOf`), so
+  staff can read what carriers submit. Who may touch which carrier's data is decided by
+  `permissions` before storage is called. The file browser (`/api/files`) still uses the
+  user's own principal and folder list.
+
+| What | Folder | File names |
 |---|---|---|
-| `AccessContext` (`userId`, `organisationId`, `role`) | `apps/api/src/contracts/access.ts` | Sign-in work. Must come from the session, never from a request body. |
-| `PermissionChecker.can(context, action, { organisationId })` | same file | Sign-in work. Actions: `import:upload`, `import:read`, `tariff:edit`, `tariff:submit`, `tariff:approve`, `tariff:read`, `price:calculate`. |
-| `FileStore` (`putFile`, `putJson`, `getJson`, `getFile`, `list`) | `apps/api/src/contracts/fileStore.ts` | SharePoint work. Must apply the ETag check when `ifMatch` is given and throw `StorageConflictError` on a mismatch. |
-| `getContext(request)` | `registerFreightRoutes` in `apps/api/src/freight/routes.ts` | Sign-in work. Returning `null` gives a 401. |
-| `GET /api/session` | used by `apps/app/src/features/carriers/useSession.ts` | Sign-in work. Returns `{ userId, organisationId, role }`. |
-| `GET /api/carriers` | used by `apps/app/src/features/compare/compareApi.ts` | Organisation work. Returns `[{ organisationId, name, tariffId }]`. |
+| Uploaded shipment file | `inbound/shipments` | `<importId>-original.xlsx` |
+| Processed file, mapping, report, manifest | `datasets/shipments` | `<importId>-processed.xlsx`, `-mapping.json`, `-validation-report.json`, `-manifest.json` |
+| Remembered column setups | `imports/mappings` | `<layout>-v<N>.json` |
+| Import drafts | `imports/drafts` | `<draftId>-original.*`, `<draftId>-r<N>.json` |
+| Carrier tariffs | `carriers/<companyId>/tariffs` | `<tariffId>-v<version>-r<revision>.json` |
 
-Nothing here hardcodes an organisation, carrier or SharePoint path. Logical paths are
-passed to `FileStore`; it decides where they live.
+Download-only results stay in a temporary server folder and are removed after
+`IMPORT_RETENTION_MINUTES`. Nothing about them is stored in the cloud.
 
-## Logical storage paths
-
-```
-imports/<importId>/original.(xlsx|csv)         saved import (original)
-imports/<importId>/processed.(xlsx|csv)        saved import (result)
-imports/<importId>/mapping.json                column choices used
-imports/<importId>/validation-report.json      counts and first issues
-imports/<importId>/manifest.json               written last: a folder without it is unfinished
-mappings/<organisationId>/<layout>/v<N>.json   remembered column setup, one file per version
-drafts/<organisationId>/<draftId>/original.*   draft file
-drafts/<organisationId>/<draftId>/draft.json   draft choices; status "open" or "discarded"
-tariffs/<carrierOrganisationId>/<tariffId>/v<N>.json   one immutable file per version once published
-```
-
-Downloaded results are not stored here. They stay in a temporary server folder and are
-removed after `IMPORT_RETENTION_MINUTES`.
-
-## What this code gives back
-
-| Need | Provided by |
-|---|---|
-| Import use cases | `ImportService`, `ImportLibrary` |
-| Background job state | `JobRunner` (pending, processing, completed, failed, cancelled) |
-| Tariff save, submit, approve, activate, read | `TariffService` |
-| Shipment price for one or many carriers | `PricingService.priceCarriers`; pure calculation in `calculatePrice` |
-| Delivery reliability for the comparison | `ReliabilityProvider` in `apps/app/src/features/compare/reliability.ts`. No provider exists yet; the screen shows "not available". |
-
-## Settings (environment variables, all optional)
+## Settings (all optional)
 
 `IMPORT_MAX_FILE_MB` (100), `IMPORT_MAX_ROWS` (500000), `IMPORT_MAX_COLUMNS` (200),
 `IMPORT_MAX_CONCURRENT_JOBS` (2), `IMPORT_MAX_ATTEMPTS` (3), `IMPORT_RETENTION_MINUTES` (30).
+Uploads are also capped by `MAX_UPLOAD_BYTES`.
+
+## Still open
+
+- The user directory (`auth/directory.ts`) is in memory with a fixed list of carrier
+  companies. The comparison shows the company id as the carrier name until the
+  organisation data has names.
+- `modules/files` and `infrastructure/microsoft365` from the platform foundation are not
+  used by the running app; the storage adapter replaced that design.
+- Nothing has been tested against a real Microsoft 365 tenant or a real Entra sign-in.
 
 ## Pricing rules that need customer approval
 
@@ -68,3 +75,4 @@ production use:
    against a real carrier workbook. Blank or unreadable cells are returned as questions
    and leave the tariff incomplete.
 7. Tariff approval roles: carriers submit; consultants and masters approve and activate.
+8. A carrier with several tariffs is priced with the cheapest one that fits the shipment.

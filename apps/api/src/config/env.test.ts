@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadApiEnvironment } from "./env.ts";
 
@@ -70,5 +71,18 @@ describe("API environment", () => {
         DATABASE_URL: "https://db.example.test",
       }),
     ).toThrow();
+  });
+
+  it("accepts the settings listed in .env.example", () => {
+    const values: Record<string, string> = {};
+    const example = readFileSync(
+      new URL("../../../../.env.example", import.meta.url),
+      "utf8",
+    );
+    for (const line of example.split(/\r?\n/)) {
+      const match = /^([A-Z_]+)=(.*)$/.exec(line);
+      if (match?.[1]) values[match[1]] = match[2] ?? "";
+    }
+    expect(() => loadApiEnvironment(values)).not.toThrow();
   });
 });

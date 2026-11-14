@@ -1,45 +1,36 @@
-// Local server for browser tests only. It wires the real routes and services to an
-// in-memory store and one fixed test user. It is never used outside tests.
+// Local server for browser tests only. It runs the real app with mock sign-in and an
+// in-memory storage, and seeds one active tariff. It is never used outside tests.
 
-import Fastify from "fastify";
-import { registerFreightRoutes } from "../../../apps/api/src/freight/routes.ts";
-import { ImportService } from "../../../apps/api/src/imports/importService.ts";
-import { ImportLibrary } from "../../../apps/api/src/imports/library.ts";
-import { PricingService } from "../../../apps/api/src/tariffs/pricing.ts";
+import { buildApi } from "../../../apps/api/src/app.ts";
+import { permissions } from "../../../apps/api/src/auth/permissions.ts";
+import { loadApiEnvironment } from "../../../apps/api/src/config/env.ts";
+import { Documents } from "../../../apps/api/src/storage/documents.ts";
 import { TariffService } from "../../../apps/api/src/tariffs/service.ts";
-import {
-  createMemoryStore,
-  rolePermissions,
-} from "../../../apps/api/src/testing/memoryStore.ts";
+import { createMemoryStorage } from "../../../apps/api/src/testing/memoryStorage.ts";
 
-const PORT = 3000;
-const user = {
-  userId: "test-user",
-  organisationId: "carrier-a",
+const environment = loadApiEnvironment({
+  NODE_ENV: "test",
+  APP_ORIGIN: "http://127.0.0.1:5173",
+  API_ORIGIN: "http://127.0.0.1:3000",
+  API_PORT: "3000",
+  AUTH_MODE: "mock",
+});
+
+const storage = createMemoryStorage();
+const tariffs = new TariffService({
+  documents: new Documents(storage),
+  permissions,
+});
+const admin = {
+  userId: "seed",
+  organisationId: "slinkert-aaroe",
   role: "master",
 } as const;
-
-const store = createMemoryStore();
-const tariffs = new TariffService({ store, permissions: rolePermissions });
-const imports = new ImportService({ store, permissions: rolePermissions });
-const app = Fastify();
-
-registerFreightRoutes(app, {
-  getContext: () => user,
-  imports,
-  library: new ImportLibrary(imports, store),
-  tariffs,
-  pricing: new PricingService({ tariffs, permissions: rolePermissions }),
-});
-app.get("/api/session", async () => user);
-app.get("/api/carriers", async () => [
-  { organisationId: "carrier-a", name: "Test Carrier A", tariffId: "t-seed" },
-]);
 
 const seed = {
   tariffId: "t-seed",
   version: 1,
-  carrierOrganisationId: "carrier-a",
+  carrierOrganisationId: "carrier-blue-fjord",
   status: "draft",
   currency: "DKK",
   method: "per_100kg",
@@ -63,15 +54,18 @@ const seed = {
   },
   sourceFile: null,
   createdAt: "2026-01-01T00:00:00Z",
-  createdBy: "test-user",
+  createdBy: "seed",
   submittedAt: null,
   approvedAt: null,
   approvedBy: null,
 } as const;
 
-const saved = await tariffs.saveDraft(user, seed as never);
-await tariffs.submit(user, saved.tariff);
-await tariffs.approve(user, saved.tariff);
-await tariffs.activateVersion(user, saved.tariff);
+const saved = await tariffs.saveDraft(admin, seed as never);
+await tariffs.submit(admin, saved.tariff);
+await tariffs.approve(admin, saved.tariff);
+await tariffs.activateVersion(admin, saved.tariff);
 
-await app.listen({ port: PORT, host: "127.0.0.1" });
+await buildApi({ environment, storage }).listen({
+  port: environment.API_PORT,
+  host: "127.0.0.1",
+});

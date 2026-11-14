@@ -1,19 +1,23 @@
-// Saves one processed import to the client's cloud through the FileStore contract:
+// Saves one processed import to the client's cloud through the SharePoint storage:
 // original file, processed file, column mapping, validation report and manifest.
 // Not for download-only runs: those never call this and leave nothing in the cloud.
 
 import { randomUUID } from "node:crypto";
 import type { ColumnMapping } from "@freight-desk/shared";
-import type { AccessContext } from "../contracts/access.ts";
-import type { FileStore } from "../contracts/fileStore.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import type { Documents } from "../storage/documents.ts";
 import type { ProcessSummary } from "./processShipments.ts";
 import type { OutputFormat } from "./sinks.ts";
 
 export const PROCESSING_VERSION = "1";
 
+// Uploaded files go to the shipment inbox; results and reports to the datasets folder.
+const ORIGINALS = { kind: "inbound-shipments" } as const;
+const RESULTS = { kind: "datasets-shipments" } as const;
+
 export type SaveInput = {
   context: AccessContext;
-  store: FileStore;
+  documents: Documents;
   originalPath: string;
   originalName: string;
   processedPath: string;
@@ -53,42 +57,46 @@ function extensionOf(name: string): string {
   return match ? `.${match[1]?.toLowerCase()}` : "";
 }
 
-// The manifest is written last, so a folder without one is an unfinished save.
+// The manifest is written last, so an import without one is an unfinished save.
 export async function saveImportToCloud(
   input: SaveInput,
 ): Promise<ImportManifest> {
-  const { context, store, summary } = input;
+  const { context, documents, summary } = input;
   const importId = randomUUID();
-  const folder = `imports/${importId}`;
   const files = {
-    original: `${folder}/original${extensionOf(input.originalName)}`,
-    processed: `${folder}/processed.${input.format}`,
-    mapping: `${folder}/mapping.json`,
-    report: `${folder}/validation-report.json`,
+    original: `${importId}-original${extensionOf(input.originalName)}`,
+    processed: `${importId}-processed.${input.format}`,
+    mapping: `${importId}-mapping.json`,
+    report: `${importId}-validation-report.json`,
   };
   const saved: string[] = [];
-  const step = async (path: string, write: () => Promise<unknown>) => {
+  const step = async (name: string, write: () => Promise<unknown>) => {
     await write();
-    saved.push(path);
+    saved.push(name);
   };
   try {
     await step(files.original, () =>
-      store.putFile(context, files.original, input.originalPath),
+      documents.putFile(context, ORIGINALS, files.original, input.originalPath),
     );
     await step(files.processed, () =>
-      store.putFile(context, files.processed, input.processedPath),
+      documents.putFile(context, RESULTS, files.processed, input.processedPath),
     );
     await step(files.mapping, () =>
-      store.putJson(context, files.mapping, {
+      documents.putJson(context, RESULTS, files.mapping, {
         headers: input.headers,
         mapping: input.mapping,
       }),
     );
     await step(files.report, () =>
-      store.putJson(context, files.report, summary),
+      documents.putJson(context, RESULTS, files.report, summary),
     );
     const manifest = buildManifest(importId, context, files, summary);
-    await store.putJson(context, `${folder}/manifest.json`, manifest);
+    await documents.putJson(
+      context,
+      RESULTS,
+      `${importId}-manifest.json`,
+      manifest,
+    );
     return manifest;
   } catch (error) {
     throw new SaveFailedError(saved, error);

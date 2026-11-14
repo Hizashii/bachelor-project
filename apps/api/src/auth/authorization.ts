@@ -1,8 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
-import type { preHandlerHookHandler } from "fastify";
+import type { FastifyRequest, preHandlerHookHandler } from "fastify";
 import type { ApiEnvironment } from "../config/env.ts";
 import { AuthError, type AuthService } from "./service.ts";
 import type { UserRole } from "./types.ts";
+
+const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 
 export type TenderResource = {
   invitedCarrierCompanyIds: readonly string[];
@@ -90,32 +92,40 @@ export function requireCompanyAccess(
   };
 }
 
+function assertCsrf(request: FastifyRequest, environment: ApiEnvironment) {
+  if (!request.auth)
+    throw new AuthError("unauthenticated", "Authentication is required.", 401);
+
+  const origin = request.headers.origin;
+  const csrfHeader = request.headers["x-csrf-token"];
+  const csrfToken = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
+  const expected = request.auth.session.csrfToken;
+  if (
+    origin !== environment.APP_ORIGIN ||
+    !csrfToken ||
+    !constantTimeEqual(csrfToken, expected)
+  ) {
+    throw new AuthError(
+      "csrf_failed",
+      "The request failed CSRF validation.",
+      403,
+    );
+  }
+}
+
 export function requireCsrf(
   environment: ApiEnvironment,
 ): preHandlerHookHandler {
-  return async (request) => {
-    if (!request.auth)
-      throw new AuthError(
-        "unauthenticated",
-        "Authentication is required.",
-        401,
-      );
+  return async (request) => assertCsrf(request, environment);
+}
 
-    const origin = request.headers.origin;
-    const csrfHeader = request.headers["x-csrf-token"];
-    const csrfToken = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
-    const expected = request.auth.session.csrfToken;
-    if (
-      origin !== environment.APP_ORIGIN ||
-      !csrfToken ||
-      !constantTimeEqual(csrfToken, expected)
-    ) {
-      throw new AuthError(
-        "csrf_failed",
-        "The request failed CSRF validation.",
-        403,
-      );
-    }
+// For route groups with both reads and writes: only requests that change data are checked.
+export function requireCsrfOnWrites(
+  environment: ApiEnvironment,
+): preHandlerHookHandler {
+  return async (request) => {
+    if (SAFE_METHODS.includes(request.method)) return;
+    assertCsrf(request, environment);
   };
 }
 

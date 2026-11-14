@@ -1,12 +1,12 @@
 // Temporary files for uploads and results, plus expiring download links.
 // Everything here is deleted after the retention time. Nothing here is a backup.
-// Not for durable storage: see contracts/fileStore.ts.
+// Not for durable storage: see storage/documents.ts.
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AccessContext } from "../contracts/access.ts";
+import type { AccessContext } from "../auth/permissions.ts";
 import { importLimits } from "./limits.ts";
 
 const ROOT = join(tmpdir(), "freight-desk-imports");

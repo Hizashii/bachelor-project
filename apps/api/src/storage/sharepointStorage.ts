@@ -99,6 +99,8 @@ export class SharePointStorageAdapter implements StorageAdapter {
       ["inbound", "carrier-imports"],
       ["inbound", "invoices"],
       ["datasets", "shipments"],
+      ["imports", "drafts"],
+      ["imports", "mappings"],
       ["invoice-control"],
       ["exports"],
       ["audits"],

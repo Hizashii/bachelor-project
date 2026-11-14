@@ -3,9 +3,11 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AccessContext } from "../contracts/access.ts";
-import { createMemoryStore, rolePermissions } from "../testing/memoryStore.ts";
-import { ImportService } from "./importService.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import { permissions } from "../auth/permissions.ts";
+import { Documents } from "../storage/documents.ts";
+import { createMemoryStorage } from "../testing/memoryStorage.ts";
+import { ImportAccessError, ImportService } from "./importService.ts";
 import { DraftNotFoundError, ImportLibrary } from "./library.ts";
 import { createWorkspace } from "./tempFiles.ts";
 
@@ -14,17 +16,17 @@ const staff: AccessContext = {
   organisationId: "sa",
   role: "consultant",
 };
-const other: AccessContext = {
-  userId: "s2",
-  organisationId: "other",
-  role: "consultant",
+const carrier: AccessContext = {
+  userId: "c1",
+  organisationId: "carrier-blue-fjord",
+  role: "carrier",
 };
 const csv = "Ref;Fra;Til\nS-1;8300;2680\n";
 
 function setup() {
-  const store = createMemoryStore();
-  const imports = new ImportService({ store, permissions: rolePermissions });
-  return { library: new ImportLibrary(imports, store), imports };
+  const documents = new Documents(createMemoryStorage());
+  const imports = new ImportService({ documents, permissions });
+  return { library: new ImportLibrary(imports, documents), imports };
 }
 
 async function upload(library: ImportLibrary, context = staff) {
@@ -59,13 +61,12 @@ describe("saved column setups", () => {
     expect(second.inspection.mapping).toMatchObject({ carrier: 0 });
   });
 
-  it("does not share setups between organisations", async () => {
+  it("keeps shipment imports for staff: a carrier cannot open or save one", async () => {
     const { library } = setup();
-    const first = await upload(library);
-    await library.rememberMapping(staff, first.sessionId, "A", {
-      reference: 0,
-    });
-    expect((await upload(library, other)).knownTemplate).toBeNull();
+    await expect(upload(library, carrier)).rejects.toBeInstanceOf(
+      ImportAccessError,
+    );
+    expect(() => library.listDrafts(carrier)).toThrow(ImportAccessError);
   });
 });
 
@@ -102,7 +103,7 @@ describe("drafts", () => {
     ).rejects.toBeInstanceOf(DraftNotFoundError);
   });
 
-  it("cannot reopen another organisation's draft", async () => {
+  it("does not let a carrier reopen or discard a staff draft", async () => {
     const { library } = setup();
     const opened = await upload(library);
     const draft = await library.saveDraft(
@@ -112,7 +113,10 @@ describe("drafts", () => {
       "csv",
     );
     await expect(
-      library.reopenDraft(other, draft.draftId),
-    ).rejects.toBeInstanceOf(DraftNotFoundError);
+      library.reopenDraft(carrier, draft.draftId),
+    ).rejects.toBeInstanceOf(ImportAccessError);
+    await expect(
+      library.discardDraft(carrier, draft.draftId),
+    ).rejects.toBeInstanceOf(ImportAccessError);
   });
 });

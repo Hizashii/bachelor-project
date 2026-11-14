@@ -12,13 +12,23 @@ const environment = loadApiEnvironment({
 });
 
 async function signIn(app: ReturnType<typeof buildApi>, identity: string) {
-  const response = await app.inject({
+  const login = await app.inject({
     method: "GET",
     url: `/auth/mock/login?identity=${identity}`,
   });
-  const cookie = response.headers["set-cookie"];
-  const first = Array.isArray(cookie) ? cookie[0] : cookie;
-  return String(first).split(";", 1)[0] ?? "";
+  const cookie = login.headers["set-cookie"];
+  const first = String(Array.isArray(cookie) ? cookie[0] : cookie);
+  const session = first.split(";", 1)[0] ?? "";
+  const csrf = await app.inject({
+    method: "GET",
+    url: "/api/csrf",
+    headers: { cookie: session },
+  });
+  return {
+    cookie: session,
+    origin: environment.APP_ORIGIN,
+    "x-csrf-token": csrf.json().token as string,
+  };
 }
 
 describe("file API authorization boundary", () => {
@@ -46,7 +56,7 @@ describe("file API authorization boundary", () => {
         },
       },
     });
-    const headers = { cookie: await signIn(app, "consultant") };
+    const headers = await signIn(app, "consultant");
 
     const invalidFolder = await app.inject({
       method: "GET",
@@ -83,7 +93,7 @@ describe("file API authorization boundary", () => {
         },
       },
     });
-    const headers = { cookie: await signIn(app, "carrier") };
+    const headers = await signIn(app, "carrier");
     await app.inject({
       method: "GET",
       url: "/api/files?folder=inbound/carrier-imports",

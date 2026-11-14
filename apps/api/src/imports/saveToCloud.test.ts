@@ -3,11 +3,10 @@
 import { rm, stat, utimes, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AccessContext } from "../contracts/access.ts";
-import {
-  type FileStore,
-  StorageUnavailableError,
-} from "../contracts/fileStore.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import { Documents } from "../storage/documents.ts";
+import { StorageError } from "../storage/errors.ts";
+import { createMemoryStorage } from "../testing/memoryStorage.ts";
 import { saveImportToCloud } from "./saveToCloud.ts";
 import {
   createDownloadToken,
@@ -30,49 +29,54 @@ const summary = {
   issuesTruncated: false,
 };
 
-function memoryStore(failOn?: string) {
-  const paths: string[] = [];
-  const put = async (_c: AccessContext, path: string) => {
-    if (path.endsWith(failOn ?? "\0")) throw new StorageUnavailableError();
-    paths.push(path);
-    return { path, etag: "1", sizeBytes: 1 };
+async function inputFor(failOn?: string) {
+  const storage = createMemoryStorage();
+  if (failOn) {
+    const initiate = storage.initiateUpload;
+    storage.initiateUpload = async (principal, request) => {
+      if (request.fileName.endsWith(failOn)) {
+        throw new StorageError("cloud_unavailable", "down");
+      }
+      return initiate(principal, request);
+    };
+  }
+  const workspace = await createWorkspace();
+  const originalPath = join(workspace.dir, "a.xlsx");
+  const processedPath = join(workspace.dir, "b.xlsx");
+  await writeFile(originalPath, "original");
+  await writeFile(processedPath, "processed");
+  return {
+    storage,
+    input: {
+      context,
+      documents: new Documents(storage),
+      originalPath,
+      originalName: "Q1 Shipments.XLSX",
+      processedPath,
+      format: "xlsx" as const,
+      mapping: {},
+      headers: [],
+      summary,
+    },
   };
-  const store: FileStore = {
-    putFile: put,
-    putJson: put,
-    getJson: async () => null,
-    getFile: async () => undefined,
-    list: async () => [],
-  };
-  return { store, paths };
 }
-
-const input = (store: FileStore) => ({
-  context,
-  store,
-  originalPath: "a.xlsx",
-  originalName: "Q1 Shipments.XLSX",
-  processedPath: "b.xlsx",
-  format: "xlsx" as const,
-  mapping: {},
-  headers: [],
-  summary,
-});
 
 describe("saveImportToCloud", () => {
   it("saves five files and writes the manifest last", async () => {
-    const { store, paths } = memoryStore();
-    const manifest = await saveImportToCloud(input(store));
-    expect(paths).toHaveLength(5);
-    expect(paths.at(-1)).toMatch(/manifest\.json$/);
+    const { storage, input } = await inputFor();
+    const manifest = await saveImportToCloud(input);
+    const names = [...storage.entries.values()].map((entry) => entry.file.name);
+    expect(names).toHaveLength(5);
+    expect(names.at(-1)).toMatch(/manifest\.json$/);
     expect(manifest.files.original).toMatch(/original\.xlsx$/);
   });
 
   it("reports what was saved when storage fails, with no manifest", async () => {
-    const { store, paths } = memoryStore("processed.xlsx");
-    const error = await saveImportToCloud(input(store)).catch((e) => e);
+    const { storage, input } = await inputFor("processed.xlsx");
+    const error = await saveImportToCloud(input).catch((e) => e);
     expect(error.savedPaths).toHaveLength(1);
-    expect(paths.some((p) => p.endsWith("manifest.json"))).toBe(false);
+    const names = [...storage.entries.values()].map((entry) => entry.file.name);
+    expect(names.some((name) => name.endsWith("manifest.json"))).toBe(false);
   });
 });
 

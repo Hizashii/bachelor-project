@@ -8,12 +8,10 @@ import { apiFetch, postJson } from "../../api/client";
 export type ComparableCarrier = {
   organisationId: string;
   name: string;
-  tariffId: string;
 };
 
 export type CarrierPrice = {
   organisationId: string;
-  tariffId: string;
   result:
     | PriceResult
     | { status: "no_tariff" }
@@ -30,10 +28,7 @@ export function priceCarriers(
   shipment: PriceShipment,
 ) {
   return postJson<CarrierPrice[]>("/api/pricing/compare", {
-    carriers: carriers.map(({ organisationId, tariffId }) => ({
-      organisationId,
-      tariffId,
-    })),
+    carriers: carriers.map(({ organisationId }) => ({ organisationId })),
     shipment,
   });
 }

@@ -3,7 +3,7 @@
 // Not for job content: the work function is supplied by the feature (for example imports).
 
 import { randomUUID } from "node:crypto";
-import type { AccessContext } from "../contracts/access.ts";
+import type { AccessContext } from "../auth/permissions.ts";
 
 export type JobState =
   | "pending"

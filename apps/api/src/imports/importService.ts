@@ -12,9 +12,9 @@ import {
   DuplicateTracker,
   type RowIssue,
 } from "@freight-desk/shared";
-import type { AccessContext, PermissionChecker } from "../contracts/access.ts";
-import type { FileStore } from "../contracts/fileStore.ts";
+import type { AccessContext, PermissionChecker } from "../auth/permissions.ts";
 import { JobRunner, type JobView } from "../jobs/jobRunner.ts";
+import type { Documents } from "../storage/documents.ts";
 import { type FileInspection, inspectFile, splitHeader } from "./inspect.ts";
 import { importLimits } from "./limits.ts";
 import {
@@ -53,7 +53,7 @@ type Session = {
   jobId: string | null;
 };
 
-type Dependencies = { store: FileStore; permissions: PermissionChecker };
+type Dependencies = { documents: Documents; permissions: PermissionChecker };
 
 const USER_MESSAGE_FALLBACK = "Processing failed. Please try again.";
 
@@ -242,7 +242,7 @@ export class ImportService {
     );
     return saveImportToCloud({
       context,
-      store: this.deps.store,
+      documents: this.deps.documents,
       originalPath: session.inputPath,
       originalName: session.originalName,
       processedPath: outputPath,

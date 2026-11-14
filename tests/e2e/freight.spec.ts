@@ -10,6 +10,10 @@ const shipmentsCsv = [
   "S-1;8300;2680;100",
 ].join("\n");
 
+test.beforeEach(async ({ page }) => {
+  await page.goto("/auth/mock/login?identity=master");
+});
+
 test("upload: map columns, process, see issues and download", async ({
   page,
 }) => {
@@ -68,6 +72,7 @@ test("upload: draft is saved and can be reopened", async ({ page }) => {
 test("carrier portal: import rate sheet, check zones, price a sample, save draft", async ({
   page,
 }) => {
+  await page.goto("/auth/mock/login?identity=carrier");
   await page.goto("/carriers");
   const sheet = [
     "Pris pr. 100 kg;Zone A (00-26);Zone B (30-36)",
@@ -108,7 +113,9 @@ test("compare: shows the calculated price and marks reliability as not available
   await page.getByLabel("Vægt (kg)").fill("250");
   await page.getByRole("button", { name: "Sammenlign priser" }).click();
 
-  await expect(page.getByText("Test Carrier A", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("carrier-blue-fjord", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("500,00 DKK").first()).toBeVisible();
   await expect(page.getByText("Ikke tilgængelig").first()).toBeVisible();
   await expect(page.getByText(/%/)).toHaveCount(0);

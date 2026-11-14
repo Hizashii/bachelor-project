@@ -3,9 +3,11 @@
 
 import type { Tariff } from "@freight-desk/shared";
 import { describe, expect, it } from "vitest";
-import type { AccessContext } from "../contracts/access.ts";
-import { StorageConflictError } from "../contracts/fileStore.ts";
-import { createMemoryStore, rolePermissions } from "../testing/memoryStore.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import { permissions } from "../auth/permissions.ts";
+import { Documents } from "../storage/documents.ts";
+import { StorageError } from "../storage/errors.ts";
+import { createMemoryStorage } from "../testing/memoryStorage.ts";
 import { PricingService } from "./pricing.ts";
 import {
   TariffAccessError,
@@ -63,10 +65,11 @@ const draft: Tariff = {
 };
 
 function setup() {
-  const store = createMemoryStore();
-  const tariffs = new TariffService({ store, permissions: rolePermissions });
-  const pricing = new PricingService({ tariffs, permissions: rolePermissions });
-  return { store, tariffs, pricing };
+  const storage = createMemoryStorage();
+  const documents = new Documents(storage);
+  const tariffs = new TariffService({ documents, permissions });
+  const pricing = new PricingService({ tariffs, permissions });
+  return { documents, tariffs, pricing };
 }
 
 describe("tariff workflow", () => {
@@ -80,7 +83,7 @@ describe("tariff workflow", () => {
 
     const [price] = await pricing.priceCarriers(
       staff,
-      [{ organisationId: "carrier-a", tariffId: "t-1" }],
+      [{ organisationId: "carrier-a" }],
       {
         originPostcode: "8300",
         destinationPostcode: "2680",
@@ -146,9 +149,9 @@ describe("tariff workflow", () => {
     );
     await expect(
       tariffs.saveDraft(carrier, draft, first.etag),
-    ).rejects.toBeInstanceOf(StorageConflictError);
+    ).rejects.toBeInstanceOf(StorageError);
     await expect(tariffs.saveDraft(carrier, draft)).rejects.toBeInstanceOf(
-      StorageConflictError,
+      StorageError,
     );
   });
 
@@ -157,7 +160,7 @@ describe("tariff workflow", () => {
     await tariffs.saveDraft(carrier, draft);
     const [price] = await pricing.priceCarriers(
       staff,
-      [{ organisationId: "carrier-a", tariffId: "t-1" }],
+      [{ organisationId: "carrier-a" }],
       {
         originPostcode: "8300",
         destinationPostcode: "2680",
@@ -172,18 +175,17 @@ describe("tariff workflow", () => {
   });
 
   it("prices the other carriers when one tariff cannot be read", async () => {
-    const { store, tariffs, pricing } = setup();
+    const { documents, tariffs, pricing } = setup();
     await tariffs.saveDraft(carrier, draft);
-    store.files.set("tariffs/carrier-b/t-2/v1.json", {
-      value: { broken: true },
-      etag: 1,
-    });
+    await documents.putJson(
+      staff,
+      { kind: "carrier-tariffs", carrierId: "carrier-b" },
+      "t-2-v1-r1.json",
+      { broken: true },
+    );
     const prices = await pricing.priceCarriers(
       staff,
-      [
-        { organisationId: "carrier-b", tariffId: "t-2" },
-        { organisationId: "carrier-a", tariffId: "t-1" },
-      ],
+      [{ organisationId: "carrier-b" }, { organisationId: "carrier-a" }],
       {
         originPostcode: "8300",
         destinationPostcode: "2680",

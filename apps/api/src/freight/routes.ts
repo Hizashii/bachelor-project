@@ -10,8 +10,9 @@ import {
 } from "@freight-desk/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import type { AccessContext } from "../contracts/access.ts";
-import { StorageConflictError } from "../contracts/fileStore.ts";
+import { carrierCompanyIds } from "../auth/directory.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import { accessContextOf } from "../auth/principal.ts";
 import {
   ImportAccessError,
   type ImportService,
@@ -25,6 +26,7 @@ import {
   resolveDownload,
   sweepExpired,
 } from "../imports/tempFiles.ts";
+import { StorageError } from "../storage/errors.ts";
 import type { PricingService } from "../tariffs/pricing.ts";
 import {
   TariffAccessError,
@@ -34,7 +36,6 @@ import {
 import { receiveUpload, UploadTooLargeError } from "./upload.ts";
 
 export type FreightDependencies = {
-  getContext: (request: FastifyRequest) => AccessContext | null;
   imports: ImportService;
   library: ImportLibrary;
   tariffs: TariffService;
@@ -70,9 +71,7 @@ const shipmentSchema = z
 const compareBody = z
   .object({
     carriers: z
-      .array(
-        z.object({ organisationId: z.string(), tariffId: z.string() }).strict(),
-      )
+      .array(z.object({ organisationId: z.string() }).strict())
       .max(50),
     shipment: shipmentSchema,
   })
@@ -84,18 +83,26 @@ const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
   [TariffAccessError, 403, "You do not have access to that."],
   [ImportStateError, 409, "The file is not ready for that yet."],
   [TariffStateError, 409, "That change is not allowed for this tariff."],
-  [
-    StorageConflictError,
-    409,
-    "Someone else changed this. Reload and try again.",
-  ],
   [UnreadableFileError, 422, "We could not read that file. Use .xlsx or .csv."],
   [MappingError, 422, "Some required columns are not matched yet."],
   [UploadTooLargeError, 413, "That file is too large."],
   [z.ZodError, 400, "Some of the information is not valid."],
 ];
 
+const STORAGE_MESSAGES: Record<number, string> = {
+  403: "You do not have access to that.",
+  404: "We could not find that file.",
+  409: "Someone else changed this. Reload and try again.",
+  429: "The cloud is busy. Please try again in a moment.",
+};
+
 function fail(reply: FastifyReply, error: unknown) {
+  if (error instanceof StorageError) {
+    const message =
+      STORAGE_MESSAGES[error.statusCode] ??
+      "The cloud storage is not available right now.";
+    return reply.code(error.statusCode).send({ message });
+  }
   const match = FRIENDLY.find(([type]) => error instanceof type);
   const [, status, message] = match ?? [
     Error,
@@ -114,10 +121,6 @@ export function registerFreightRoutes(
   }, SWEEP_EVERY_MS);
   sweep.unref();
   app.addHook("onClose", async () => clearInterval(sweep));
-  app.addContentTypeParser(
-    "application/octet-stream",
-    (_request, payload, done) => done(null, payload),
-  );
 
   const guarded =
     <T>(
@@ -128,7 +131,7 @@ export function registerFreightRoutes(
       ) => Promise<T> | T,
     ) =>
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const context = deps.getContext(request);
+      const context = request.auth ? accessContextOf(request.auth.user) : null;
       if (!context) return reply.code(401).send({ message: "Please sign in." });
       try {
         return await handler(context, request, reply);
@@ -159,12 +162,10 @@ function registerImportRoutes(
 
   app.post(
     "/api/imports",
-    { bodyLimit: Number.MAX_SAFE_INTEGER },
+
     guarded(async (context, request) => {
       const { name } = nameQuery.parse(request.query);
-      const { workspace, path } = await receiveUpload(
-        request.body as NodeJS.ReadableStream,
-      );
+      const { workspace, path } = await receiveUpload(request.body as Buffer);
       return library.openUpload(context, workspace, name, path);
     }),
   );
@@ -296,6 +297,16 @@ function registerTariffRoutes(
   };
 
   app.get(
+    "/api/carriers",
+    guarded((context) => {
+      if (context.role === "carrier") return [];
+      return tariffs
+        .listCarrierTariffs(context, carrierCompanyIds)
+        .then((items) => [...new Set(items.map((item) => item.organisationId))])
+        .then((ids) => ids.map((id) => ({ organisationId: id, name: id })));
+    }),
+  );
+  app.get(
     "/api/tariffs/:organisationId/:tariffId/versions",
     guarded((context, request) => {
       const { organisationId, tariffId } = versionParams
@@ -306,13 +317,11 @@ function registerTariffRoutes(
   );
   app.post(
     "/api/tariffs/import",
-    { bodyLimit: Number.MAX_SAFE_INTEGER },
+
     guarded(async (context, request) => {
       nameQuery.parse(request.query);
       tariffs.assertCanEdit(context);
-      const { workspace, path } = await receiveUpload(
-        request.body as NodeJS.ReadableStream,
-      );
+      const { workspace, path } = await receiveUpload(request.body as Buffer);
       try {
         return await tariffs.readGrid(context, path);
       } finally {

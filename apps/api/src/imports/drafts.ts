@@ -1,16 +1,20 @@
 // Cloud-backed import drafts: the original file plus the column choices made so far, so
-// a person can close the browser and continue later. A discarded draft is marked, not
-// deleted, because data is archived rather than removed.
+// a person can close the browser and continue later. Every save is a new numbered
+// revision file; a discarded draft is marked, not deleted.
 // A draft that was only downloaded is not a draft here: nothing was saved anywhere.
 
 import { randomUUID } from "node:crypto";
 import { columnMappingSchema } from "@freight-desk/shared";
 import { z } from "zod";
-import type { AccessContext } from "../contracts/access.ts";
-import type { FileStore } from "../contracts/fileStore.ts";
+import type { AccessContext } from "../auth/permissions.ts";
+import type { Documents } from "../storage/documents.ts";
+import type { StoredFile } from "../storage/types.ts";
+
+const DESTINATION = { kind: "import-drafts" } as const;
 
 const draftSchema = z.object({
   draftId: z.string().uuid(),
+  revision: z.number().int().positive(),
   status: z.enum(["open", "discarded"]),
   originalName: z.string(),
   originalFile: z.string(),
@@ -31,27 +35,43 @@ export type DraftInput = {
   format: Draft["format"];
 };
 
+const revisionOf = (file: StoredFile) =>
+  Number(/-r(\d+)\.json$/.exec(file.name)?.[1] ?? 0);
+
 export class DraftStore {
-  private readonly store: FileStore;
+  private readonly documents: Documents;
 
-  constructor(store: FileStore) {
-    this.store = store;
+  constructor(documents: Documents) {
+    this.documents = documents;
   }
 
-  private folder(context: AccessContext, draftId: string): string {
-    return `drafts/${context.organisationId}/${draftId}`;
+  private async latestFile(context: AccessContext, draftId: string) {
+    const files = await this.documents.list(
+      context,
+      DESTINATION,
+      `${draftId}-r`,
+    );
+    return files.sort((a, b) => revisionOf(b) - revisionOf(a))[0] ?? null;
   }
 
-  // Saving again with the same draftId continues the same draft.
+  // Saving again with the same draftId continues the same draft as a new revision.
   async save(context: AccessContext, input: DraftInput): Promise<Draft> {
     const draftId = input.draftId ?? randomUUID();
-    const folder = this.folder(context, draftId);
-    const originalFile = `${folder}/original${input.extension}`;
-    if (!input.draftId) {
-      await this.store.putFile(context, originalFile, input.originalPath);
+    const originalFile = `${draftId}-original${input.extension}`;
+    const previous = input.draftId
+      ? await this.latestFile(context, draftId)
+      : null;
+    if (!previous) {
+      await this.documents.putFile(
+        context,
+        DESTINATION,
+        originalFile,
+        input.originalPath,
+      );
     }
     const draft: Draft = {
       draftId,
+      revision: previous ? revisionOf(previous) + 1 : 1,
       status: "open",
       originalName: input.originalName,
       originalFile,
@@ -60,37 +80,38 @@ export class DraftStore {
       savedAt: new Date().toISOString(),
       savedBy: context.userId,
     };
-    const existing = await this.store.getJson(context, `${folder}/draft.json`);
-    await this.store.putJson(
+    await this.documents.putJson(
       context,
-      `${folder}/draft.json`,
+      DESTINATION,
+      `${draftId}-r${draft.revision}.json`,
       draft,
-      existing?.etag,
     );
     return draft;
   }
 
   async get(context: AccessContext, draftId: string): Promise<Draft | null> {
-    const file = await this.store.getJson(
-      context,
-      `${this.folder(context, draftId)}/draft.json`,
-    );
-    return file ? draftSchema.parse(file.value) : null;
+    const file = await this.latestFile(context, draftId);
+    return file
+      ? draftSchema.parse(await this.documents.readJson(context, file.id))
+      : null;
   }
 
   async list(context: AccessContext): Promise<Draft[]> {
-    const files = await this.store.list(
-      context,
-      `drafts/${context.organisationId}`,
+    const files = await this.documents.list(context, DESTINATION);
+    const latest = new Map<string, StoredFile>();
+    for (const file of files.filter((item) => item.name.endsWith(".json"))) {
+      const draftId = file.name.split("-r")[0] ?? "";
+      const current = latest.get(draftId);
+      if (!current || revisionOf(file) > revisionOf(current)) {
+        latest.set(draftId, file);
+      }
+    }
+    const drafts = await Promise.all(
+      [...latest.values()].map(async (file) =>
+        draftSchema.parse(await this.documents.readJson(context, file.id)),
+      ),
     );
-    const records = await Promise.all(
-      files
-        .filter((file) => file.path.endsWith("/draft.json"))
-        .map((file) => this.store.getJson(context, file.path)),
-    );
-    return records
-      .flatMap((file) => (file ? [draftSchema.parse(file.value)] : []))
-      .filter((draft) => draft.status === "open");
+    return drafts.filter((draft) => draft.status === "open");
   }
 
   async downloadOriginal(
@@ -98,19 +119,30 @@ export class DraftStore {
     draft: Draft,
     localPath: string,
   ): Promise<void> {
-    await this.store.getFile(context, draft.originalFile, localPath);
+    const files = await this.documents.list(
+      context,
+      DESTINATION,
+      draft.originalFile,
+    );
+    const original = files[0];
+    if (original) {
+      await this.documents.readFile(context, original.id, localPath);
+    }
   }
 
   async discard(context: AccessContext, draftId: string): Promise<boolean> {
-    const path = `${this.folder(context, draftId)}/draft.json`;
-    const file = await this.store.getJson(context, path);
-    if (!file) return false;
-    const draft = draftSchema.parse(file.value);
-    await this.store.putJson(
+    const draft = await this.get(context, draftId);
+    if (!draft) return false;
+    const next = {
+      ...draft,
+      status: "discarded" as const,
+      revision: draft.revision + 1,
+    };
+    await this.documents.putJson(
       context,
-      path,
-      { ...draft, status: "discarded" },
-      file.etag,
+      DESTINATION,
+      `${draftId}-r${next.revision}.json`,
+      next,
     );
     return true;
   }

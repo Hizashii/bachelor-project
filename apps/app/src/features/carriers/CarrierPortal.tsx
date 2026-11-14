@@ -1,4 +1,5 @@
 import type { PricingMethod } from "@freight-desk/shared";
+import { useAuth } from "../../auth/auth";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 import { PriceStep } from "./PriceStep";
@@ -7,7 +8,6 @@ import { StepHeading } from "./StepHeading";
 import { TariffImport } from "./TariffImport";
 import { TariffTerms } from "./TariffTerms";
 import { applyImport } from "./tariffDraft.ts";
-import { useSession } from "./useSession";
 import { type SaveStatus, useTariffEditor } from "./useTariffEditor";
 import { ZoneStep } from "./ZoneStep";
 
@@ -27,11 +27,10 @@ function methodOptions(
 
 export function CarrierPortal({ locale }: CarrierPortalProps) {
   const copy = getCopy(locale);
-  const session = useSession();
-  const editor = useTariffEditor(
-    session?.organisationId ?? null,
-    session?.userId ?? null,
-  );
+  const { user } = useAuth();
+  // Only a carrier saves its own tariff; its company is taken from the signed-in user.
+  const organisationId = user?.role === "carrier" ? user.companyId : null;
+  const editor = useTariffEditor(organisationId, user?.id ?? null);
   const methods = methodOptions(copy);
   const unitLabel =
     methods
@@ -103,7 +102,7 @@ export function CarrierPortal({ locale }: CarrierPortalProps) {
         copy={copy}
         status={editor.status}
         dirty={editor.dirty}
-        signedIn={session !== null}
+        signedIn={organisationId !== null}
         canSubmit={editor.validation.complete && !editor.dirty}
         onSave={editor.saveDraft}
         onSubmit={editor.submit}

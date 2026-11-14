@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { cheapestTotal, type OfferLine } from "./OfferTable.tsx";
 
-const carrier = { organisationId: "a", name: "A", tariffId: "t" };
+const carrier = { organisationId: "a", name: "A" };
 const line = (price: OfferLine["price"]): OfferLine => ({
   carrier,
   price,

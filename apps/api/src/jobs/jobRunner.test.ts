@@ -1,7 +1,7 @@
 // Tests for job states, concurrency limit, duplicate prevention, cancel, retry and isolation.
 
 import { describe, expect, it } from "vitest";
-import type { AccessContext } from "../contracts/access.ts";
+import type { AccessContext } from "../auth/permissions.ts";
 import { JobRunner } from "./jobRunner.ts";
 
 const org1: AccessContext = {

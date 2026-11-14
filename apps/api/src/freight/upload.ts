@@ -4,7 +4,7 @@
 
 import { createWriteStream } from "node:fs";
 import { join } from "node:path";
-import { Transform } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { importLimits } from "../imports/limits.ts";
 import {
@@ -27,13 +27,13 @@ function sizeLimit(maxBytes: number): Transform {
 }
 
 export async function receiveUpload(
-  body: NodeJS.ReadableStream,
+  body: NodeJS.ReadableStream | Buffer,
 ): Promise<{ workspace: Workspace; path: string }> {
   const workspace = await createWorkspace();
   const path = join(workspace.dir, "upload.tmp");
   try {
     await pipeline(
-      body,
+      Buffer.isBuffer(body) ? Readable.from([body]) : body,
       sizeLimit(importLimits.maxFileBytes),
       createWriteStream(path),
     );

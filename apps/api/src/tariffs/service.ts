@@ -1,6 +1,7 @@
 // Tariff use cases: save drafts, submit, approve, activate and read versions.
-// Every call is checked with the PermissionChecker contract and stored through the
-// FileStore contract. A published version is never overwritten.
+// Every call is checked with the PermissionChecker and stored in the carrier's tariff
+// folder in SharePoint. Each save is a new numbered revision file, so a published version
+// is never overwritten and two editors cannot silently replace each other's work.
 // Not for pricing shipments: see pricing.ts.
 
 import {
@@ -15,31 +16,36 @@ import {
 } from "@freight-desk/shared";
 import type {
   AccessContext,
-  ImportAction,
+  FreightAction,
   PermissionChecker,
-} from "../contracts/access.ts";
-import {
-  type FileStore,
-  StorageConflictError,
-} from "../contracts/fileStore.ts";
+} from "../auth/permissions.ts";
+import type { Documents } from "../storage/documents.ts";
+import { StorageError } from "../storage/errors.ts";
+import type { StoredFile } from "../storage/types.ts";
 import { readTariffGrid } from "./importGrid.ts";
 
 export class TariffAccessError extends Error {}
 export class TariffStateError extends Error {}
 
-type Dependencies = { store: FileStore; permissions: PermissionChecker };
+type Dependencies = { documents: Documents; permissions: PermissionChecker };
 
+// The etag is the revision number the caller last saw.
 export type SavedTariff = {
   tariff: Tariff;
   validation: TariffValidation;
   etag: string;
 };
 
-function pathOf(organisationId: string, tariffId: string, version: number) {
-  return `tariffs/${organisationId}/${tariffId}/v${version}.json`;
-}
-
 const SAFE_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+const folderOf = (organisationId: string) =>
+  ({ kind: "carrier-tariffs", carrierId: organisationId }) as const;
+
+const versionPrefix = (tariffId: string, version: number) =>
+  `${tariffId}-v${version}-r`;
+
+const revisionOf = (file: StoredFile) =>
+  Number(/-r(\d+)\.json$/.exec(file.name)?.[1] ?? 0);
 
 export class TariffService {
   private readonly deps: Dependencies;
@@ -50,7 +56,7 @@ export class TariffService {
 
   private allow(
     context: AccessContext,
-    action: ImportAction,
+    action: FreightAction,
     carrierOrganisationId: string,
   ): void {
     const resource = { organisationId: carrierOrganisationId };
@@ -69,6 +75,34 @@ export class TariffService {
     return readTariffGrid(localPath);
   }
 
+  private async load(context: AccessContext, file: StoredFile) {
+    const value = await this.deps.documents.readJson(context, file.id);
+    return tariffSchema.parse(value);
+  }
+
+  // The tariffs that exist for each carrier company, for the comparison screen.
+  async listCarrierTariffs(
+    context: AccessContext,
+    organisationIds: readonly string[],
+  ): Promise<{ organisationId: string; tariffId: string }[]> {
+    const found = await Promise.all(
+      organisationIds.map(async (organisationId) => {
+        this.allow(context, "tariff:read", organisationId);
+        const files = await this.deps.documents.list(
+          context,
+          folderOf(organisationId),
+        );
+        const ids = new Set(
+          files.map((file) => file.name.split("-v")[0] ?? ""),
+        );
+        return [...ids]
+          .filter((tariffId) => SAFE_ID.test(tariffId))
+          .map((tariffId) => ({ organisationId, tariffId }));
+      }),
+    );
+    return found.flat();
+  }
+
   async get(
     context: AccessContext,
     organisationId: string,
@@ -77,12 +111,17 @@ export class TariffService {
   ): Promise<{ tariff: Tariff; etag: string } | null> {
     this.allow(context, "tariff:read", organisationId);
     if (!SAFE_ID.test(tariffId) || !SAFE_ID.test(organisationId)) return null;
-    const file = await this.deps.store.getJson(
+    const files = await this.deps.documents.list(
       context,
-      pathOf(organisationId, tariffId, version),
+      folderOf(organisationId),
+      versionPrefix(tariffId, version),
     );
-    return file
-      ? { tariff: tariffSchema.parse(file.value), etag: file.etag }
+    const latest = files.sort((a, b) => revisionOf(b) - revisionOf(a))[0];
+    return latest
+      ? {
+          tariff: await this.load(context, latest),
+          etag: String(revisionOf(latest)),
+        }
       : null;
   }
 
@@ -93,17 +132,25 @@ export class TariffService {
   ): Promise<Tariff[]> {
     this.allow(context, "tariff:read", organisationId);
     if (!SAFE_ID.test(tariffId) || !SAFE_ID.test(organisationId)) return [];
-    const folder = `tariffs/${organisationId}/${tariffId}`;
-    const files = await this.deps.store.list(context, folder);
-    const loaded = await Promise.all(
-      files.map((file) => this.deps.store.getJson(context, file.path)),
+    const files = await this.deps.documents.list(
+      context,
+      folderOf(organisationId),
+      `${tariffId}-v`,
     );
-    return loaded.flatMap((file) =>
-      file ? [tariffSchema.parse(file.value)] : [],
+    const latest = new Map<string, StoredFile>();
+    for (const file of files) {
+      const key = file.name.replace(/-r\d+\.json$/, "");
+      const current = latest.get(key);
+      if (!current || revisionOf(file) > revisionOf(current)) {
+        latest.set(key, file);
+      }
+    }
+    return Promise.all(
+      [...latest.values()].map((file) => this.load(context, file)),
     );
   }
 
-  // Saves a draft. The caller passes the ETag it last read so a second editor is not lost.
+  // Saves a draft. The caller passes the revision it last read; an older one is a conflict.
   async saveDraft(
     context: AccessContext,
     tariff: Tariff,
@@ -111,10 +158,9 @@ export class TariffService {
   ): Promise<SavedTariff> {
     const parsed = tariffSchema.parse(tariff);
     this.allow(context, "tariff:edit", parsed.carrierOrganisationId);
-    if (!SAFE_ID.test(parsed.tariffId))
-      throw new TariffStateError("Invalid tariff id.");
-    if (!isEditable(parsed))
+    if (!isEditable(parsed)) {
       throw new TariffStateError("Only a draft can be edited.");
+    }
     const existing = await this.get(
       context,
       parsed.carrierOrganisationId,
@@ -126,14 +172,15 @@ export class TariffService {
         "This version is already published. Start a new version.",
       );
     }
-    if (existing && ifMatch === undefined) {
-      throw new StorageConflictError("Reload before saving again.");
+    if (existing && ifMatch !== existing.etag) {
+      throw new StorageError("conflict", "Reload before saving again.");
     }
-    const stored = await this.write(context, parsed, ifMatch);
+    const revision = Number(existing?.etag ?? 0) + 1;
+    await this.write(context, parsed, revision);
     return {
       tariff: parsed,
       validation: validateTariff(parsed),
-      etag: stored.etag,
+      etag: String(revision),
     };
   }
 
@@ -170,15 +217,13 @@ export class TariffService {
       new Date().toISOString(),
     );
     for (const item of changed) {
-      const etag = (
-        await this.get(
-          context,
-          item.carrierOrganisationId,
-          item.tariffId,
-          item.version,
-        )
-      )?.etag;
-      await this.write(context, item, etag);
+      const latest = await this.get(
+        context,
+        item.carrierOrganisationId,
+        item.tariffId,
+        item.version,
+      );
+      await this.write(context, item, Number(latest?.etag ?? 0) + 1);
     }
     return changed[0] as Tariff;
   }
@@ -206,20 +251,20 @@ export class TariffService {
       context.userId,
       new Date().toISOString(),
     );
-    await this.write(context, next, current.etag);
+    await this.write(context, next, Number(current.etag) + 1);
     return next;
   }
 
   private async write(
     context: AccessContext,
     tariff: Tariff,
-    ifMatch?: string,
+    revision: number,
   ) {
-    const path = pathOf(
-      tariff.carrierOrganisationId,
-      tariff.tariffId,
-      tariff.version,
+    await this.deps.documents.putJson(
+      context,
+      folderOf(tariff.carrierOrganisationId),
+      `${versionPrefix(tariff.tariffId, tariff.version)}${revision}.json`,
+      tariff,
     );
-    return this.deps.store.putJson(context, path, tariff, ifMatch);
   }
 }

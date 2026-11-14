@@ -10,11 +10,26 @@ export class ApiError extends Error {
   }
 }
 
+let csrfToken: Promise<string> | null = null;
+
+// Requests that change data carry the session's CSRF token, fetched once.
+export function csrfHeader(): Promise<Record<string, string>> {
+  csrfToken ??= fetch("/api/csrf", { credentials: "same-origin" })
+    .then((response) => response.json())
+    .then((body: { token: string }) => body.token);
+  return csrfToken.then((token) => ({ "x-csrf-token": token }));
+}
+
 export async function apiFetch<T>(
   path: string,
-  init?: RequestInit,
+  init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(path, { credentials: "same-origin", ...init });
+  const changes = (init.method ?? "GET") !== "GET";
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    ...init,
+    headers: { ...(changes ? await csrfHeader() : {}), ...init.headers },
+  });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {
       message?: string;
