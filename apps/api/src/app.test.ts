@@ -1,7 +1,7 @@
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { createApiApp } from "./app.js";
-import type { StorageAdapter } from "./storage/types.js";
+import { createApiApp } from "./app.ts";
+import type { StorageAdapter } from "./storage/types.ts";
 
 describe("file API authorization boundary", () => {
   it("rejects requests when the authentication resolver has no principal", async () => {

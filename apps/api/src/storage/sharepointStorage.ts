@@ -1,7 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { Readable } from "node:stream";
-import { StorageError } from "./errors.js";
-import type { GraphDriveItem, GraphGateway } from "./graphClient.js";
+import { StorageError } from "./errors.ts";
+import type { GraphDriveItem, GraphGateway } from "./graphClient.ts";
 import {
   type DownloadedFile,
   destinationKey,
@@ -16,7 +16,7 @@ import {
   type UploadChunkResult,
   type UploadRequest,
   type UploadSessionStart,
-} from "./types.js";
+} from "./types.ts";
 
 const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
 const MAX_CHUNK_SIZE = 60 * 1024 * 1024;
@@ -71,10 +71,12 @@ export class SharePointStorageAdapter implements StorageAdapter {
   private readonly uploadSessionTtlMs: number;
   private readonly uploads = new Map<string, UploadState>();
 
-  constructor(
-    private readonly graph: GraphGateway,
-    private readonly config: SharePointStorageConfig,
-  ) {
+  private readonly graph: GraphGateway;
+  private readonly config: SharePointStorageConfig;
+
+  constructor(graph: GraphGateway, config: SharePointStorageConfig) {
+    this.graph = graph;
+    this.config = config;
     this.chunkSize = boundedChunkSize(
       config.chunkSizeBytes ?? DEFAULT_CHUNK_SIZE,
     );

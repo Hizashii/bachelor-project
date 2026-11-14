@@ -1,12 +1,12 @@
 import { fileURLToPath } from "node:url";
-import { createApiApp } from "./app.js";
-import { requestPrincipalResolver } from "./auth.js";
-import { MicrosoftGraphClient } from "./storage/graphClient.js";
+import { createApiApp } from "./app.ts";
+import { requestPrincipalResolver } from "./auth.ts";
+import { MicrosoftGraphClient } from "./storage/graphClient.ts";
 import {
   SharePointStorageAdapter,
   UnavailableStorageAdapter,
-} from "./storage/sharepointStorage.js";
-import type { StorageAdapter } from "./storage/types.js";
+} from "./storage/sharepointStorage.ts";
+import type { StorageAdapter } from "./storage/types.ts";
 
 export async function startServer(): Promise<void> {
   const storage = createStorageFromEnvironment();

@@ -1,5 +1,5 @@
 import type { FastifyRequest } from "fastify";
-import { type Principal, principalSchema } from "./storage/types.js";
+import { type Principal, principalSchema } from "./storage/types.ts";
 
 type AuthenticatedRequest = FastifyRequest & { principal?: Principal };
 

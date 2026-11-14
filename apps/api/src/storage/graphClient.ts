@@ -1,4 +1,4 @@
-import { graphError, StorageError } from "./errors.js";
+import { graphError, StorageError } from "./errors.ts";
 
 const GRAPH_ROOT = "https://graph.microsoft.com/v1.0";
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
@@ -80,9 +80,11 @@ export class MicrosoftGraphClient implements GraphGateway {
   private readonly fetchImpl: typeof fetch;
   private readonly sleep: (milliseconds: number) => Promise<void>;
   private readonly maxRetries: number;
+  private readonly options: GraphClientOptions;
   private token: { value: string; expiresAt: number } | null = null;
 
-  constructor(private readonly options: GraphClientOptions) {
+  constructor(options: GraphClientOptions) {
+    this.options = options;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.sleep =
       options.sleep ??

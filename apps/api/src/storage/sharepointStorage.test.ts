@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { StorageError } from "./errors.js";
+import { StorageError } from "./errors.ts";
 import type {
   GraphChunkResult,
   GraphDriveItem,
   GraphGateway,
   GraphPage,
   GraphVersion,
-} from "./graphClient.js";
-import { SharePointStorageAdapter } from "./sharepointStorage.js";
-import type { Principal, StorageDestination, UploadRequest } from "./types.js";
+} from "./graphClient.ts";
+import { SharePointStorageAdapter } from "./sharepointStorage.ts";
+import type { Principal, StorageDestination, UploadRequest } from "./types.ts";
 
 const principal: Principal = {
   userId: "user-1",

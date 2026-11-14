@@ -6,10 +6,10 @@ import Fastify, {
   type FastifyRequest,
 } from "fastify";
 import { z } from "zod";
-import type { PrincipalResolver } from "./auth.js";
-import { StorageError } from "./storage/errors.js";
-import type { StorageAdapter } from "./storage/types.js";
-import { destinationFromPath, uploadRequestSchema } from "./storage/types.js";
+import type { PrincipalResolver } from "./auth.ts";
+import { StorageError } from "./storage/errors.ts";
+import type { StorageAdapter } from "./storage/types.ts";
+import { destinationFromPath, uploadRequestSchema } from "./storage/types.ts";
 
 export type ApiAppOptions = {
   storage: StorageAdapter;

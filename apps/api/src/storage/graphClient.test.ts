@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MicrosoftGraphClient } from "./graphClient.js";
+import { MicrosoftGraphClient } from "./graphClient.ts";
 
 describe("MicrosoftGraphClient", () => {
   it("retries Graph throttling with a bounded Retry-After delay", async () => {
