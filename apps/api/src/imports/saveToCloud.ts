@@ -39,11 +39,11 @@ export type ImportManifest = {
 };
 
 export class SaveFailedError extends Error {
-  constructor(
-    readonly savedPaths: string[],
-    cause: unknown,
-  ) {
+  readonly savedPaths: string[];
+
+  constructor(savedPaths: string[], cause: unknown) {
     super("Saving to Microsoft 365 failed.", { cause });
+    this.savedPaths = savedPaths;
   }
 }
 

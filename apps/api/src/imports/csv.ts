@@ -18,7 +18,11 @@ export class CsvParser {
   private quoteSeen = false;
   private skipLineFeed = false;
 
-  constructor(private readonly delimiter: CsvDelimiter) {}
+  private readonly delimiter: CsvDelimiter;
+
+  constructor(delimiter: CsvDelimiter) {
+    this.delimiter = delimiter;
+  }
 
   push(text: string): string[][] {
     const rows: string[][] = [];

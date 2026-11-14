@@ -48,7 +48,11 @@ export class JobRunner<Result> {
   private readonly queue: string[] = [];
   private running = 0;
 
-  constructor(private readonly options: JobRunnerOptions) {}
+  private readonly options: JobRunnerOptions;
+
+  constructor(options: JobRunnerOptions) {
+    this.options = options;
+  }
 
   // Submitting the same key again while the job is active returns the running job.
   submit(
