@@ -2,7 +2,15 @@
 // Deterministic synonym matching (Danish and English); no external services.
 // A person can always correct the suggestion before processing.
 
-import type { ShipmentField } from "./fields.ts";
+import { z } from "zod";
+import { type ShipmentField, shipmentFieldSchema } from "./fields.ts";
+
+const MAX_COLUMN_INDEX = 199;
+
+export const columnMappingSchema = z.partialRecord(
+  shipmentFieldSchema,
+  z.number().int().min(0).max(MAX_COLUMN_INDEX),
+);
 
 export type ColumnMapping = Partial<Record<ShipmentField, number>>;
 
