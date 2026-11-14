@@ -750,3 +750,95 @@ h1 {
     width: 100%;
   }
 }
+
+.upload-screen {
+  display: grid;
+  gap: 1.4rem;
+}
+.upload-drop {
+  align-items: center;
+  display: flex;
+  gap: 1.2rem;
+  padding: 2.4rem;
+}
+.upload-step,
+.upload-panel {
+  display: grid;
+  gap: 1rem;
+}
+.mapping-table {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1.2rem;
+}
+.mapping-row {
+  align-items: center;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 2fr);
+}
+.mapping-row select,
+.upload-actions select {
+  border: 1px solid #c9d1d9;
+  border-radius: 6px;
+  min-height: 44px;
+  padding: 0 0.6rem;
+}
+.mapping-flag {
+  background: #fff3d6;
+  border-radius: 4px;
+  color: #7a5a00;
+  font-size: 0.8rem;
+  font-style: normal;
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.45rem;
+}
+.upload-preview {
+  overflow-x: auto;
+  padding: 0.8rem;
+}
+.upload-preview-row {
+  display: flex;
+  gap: 1rem;
+}
+.upload-preview-cell {
+  flex: 0 0 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.upload-actions {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+}
+.upload-actions small {
+  color: #4f6276;
+  display: block;
+  margin-top: 0.4rem;
+  max-width: 18rem;
+}
+.upload-stats {
+  display: flex;
+  gap: 2rem;
+  margin: 0;
+}
+.upload-stats dt {
+  color: #4f6276;
+  font-size: 0.85rem;
+}
+.upload-stats dd {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+.upload-error {
+  color: #a12a2a;
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  .mapping-row {
+    grid-template-columns: 1fr;
+  }
+}

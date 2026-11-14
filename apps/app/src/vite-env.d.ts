@@ -5,6 +5,18 @@ declare module "react" {
   export function useState<T>(
     initialValue: T,
   ): [T, (value: T | ((currentValue: T) => T)) => void];
+  export function useEffect(
+    effect: () => undefined | (() => void),
+    dependencies?: readonly unknown[],
+  ): void;
+  export function useCallback<T>(
+    callback: T,
+    dependencies: readonly unknown[],
+  ): T;
+  export function useMemo<T>(
+    factory: () => T,
+    dependencies: readonly unknown[],
+  ): T;
 }
 
 declare module "react-dom/client" {
