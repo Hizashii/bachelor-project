@@ -276,4 +276,29 @@ describe("versions and permissions", () => {
     expect(selectVersion(all, "2026-03-05")?.version).toBe(1);
     expect(selectVersion(all, "2026-08-01")?.version).toBe(2);
   });
+
+  it("does not price a shipment above the only closed bracket or with absurd quantities", () => {
+    const closed = makeTariff("per_shipment", {
+      brackets: [{ from: 0, to: 500 }],
+    });
+    expect(total(closed, { weightKg: 1000 })).toBe("no_bracket");
+    expect(total(makeTariff("per_100kg"), { weightKg: 1e308 })).toBe(
+      "restriction_exceeded",
+    );
+  });
+
+  it("flags backwards brackets and duplicate rates", () => {
+    const base = makeTariff("per_100kg");
+    const result = validateTariff({
+      ...base,
+      brackets: [
+        { from: 0, to: 0 },
+        { from: 0, to: null },
+      ],
+      rates: [...base.rates, base.rates[0] as (typeof base.rates)[number]],
+    });
+    const codes = result.errors.map((e) => e.code);
+    expect(codes).toContain("bracket_not_increasing");
+    expect(codes).toContain("duplicate_rate");
+  });
 });

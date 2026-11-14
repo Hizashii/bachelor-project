@@ -76,4 +76,15 @@ describe("readRows", () => {
       UnreadableFileError,
     );
   });
+
+  it("rejects a cell that is far too long", async () => {
+    const path = join(dir, "long.csv");
+    await writeFile(
+      path,
+      `Ref;Note
+S-1;${"x".repeat(40_000)}
+`,
+    );
+    await expect(collect(path)).rejects.toBeInstanceOf(UnreadableFileError);
+  });
 });

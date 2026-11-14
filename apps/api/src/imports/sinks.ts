@@ -32,6 +32,7 @@ export function csvCell(cell: OutputCell): string {
 
 class CsvSink implements RowSink {
   private readonly stream: WriteStream;
+  private failure: Error | null = null;
 
   constructor(path: string) {
     this.stream = createWriteStream(path);
@@ -44,6 +45,7 @@ class CsvSink implements RowSink {
   }
 
   async close(): Promise<void> {
+    if (this.failure) throw this.failure;
     this.stream.end();
     await once(this.stream, "finish");
   }

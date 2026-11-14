@@ -14,7 +14,11 @@ export type ComparableCarrier = {
 export type CarrierPrice = {
   organisationId: string;
   tariffId: string;
-  result: PriceResult | { status: "no_tariff" } | { status: "denied" };
+  result:
+    | PriceResult
+    | { status: "no_tariff" }
+    | { status: "denied" }
+    | { status: "error" };
 };
 
 export function fetchCarriers() {

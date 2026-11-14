@@ -18,7 +18,10 @@ import type {
   ImportAction,
   PermissionChecker,
 } from "../contracts/access.ts";
-import type { FileStore } from "../contracts/fileStore.ts";
+import {
+  type FileStore,
+  StorageConflictError,
+} from "../contracts/fileStore.ts";
 import { readTariffGrid } from "./importGrid.ts";
 
 export class TariffAccessError extends Error {}
@@ -56,9 +59,13 @@ export class TariffService {
     }
   }
 
+  assertCanEdit(context: AccessContext): void {
+    this.allow(context, "tariff:edit", context.organisationId);
+  }
+
   // Reads an uploaded rate sheet for the signed-in carrier. Nothing is saved yet.
   readGrid(context: AccessContext, localPath: string) {
-    this.allow(context, "tariff:edit", context.organisationId);
+    this.assertCanEdit(context);
     return readTariffGrid(localPath);
   }
 
@@ -119,7 +126,10 @@ export class TariffService {
         "This version is already published. Start a new version.",
       );
     }
-    const stored = await this.write(context, parsed, ifMatch ?? existing?.etag);
+    if (existing && ifMatch === undefined) {
+      throw new StorageConflictError("Reload before saving again.");
+    }
+    const stored = await this.write(context, parsed, ifMatch);
     return {
       tariff: parsed,
       validation: validateTariff(parsed),

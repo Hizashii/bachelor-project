@@ -2,6 +2,7 @@
 // Sessions live in memory with their temporary files and expire with them.
 // Not for HTTP: see routes.ts.
 
+import { randomUUID } from "node:crypto";
 import { rename } from "node:fs/promises";
 import { join } from "node:path";
 import {
@@ -72,10 +73,8 @@ export class ImportService {
     this.deps = deps;
   }
 
-  private allow(
-    context: AccessContext,
-    action: "import:upload" | "import:read",
-  ) {
+  // Public so the draft library can apply the same rule to its own writes.
+  allow(context: AccessContext, action: "import:upload" | "import:read") {
     const resource = { organisationId: context.organisationId };
     if (!this.deps.permissions.can(context, action, resource)) {
       throw new ImportAccessError("Access denied.");
@@ -98,11 +97,19 @@ export class ImportService {
     fileName: string,
     receivedPath: string,
   ) {
-    this.allow(context, "import:upload");
-    const kind = await detectFileKind(receivedPath);
-    const inputPath = join(workspace.dir, `original.${kind}`);
-    await rename(receivedPath, inputPath);
-    const inspection = await inspectFile(inputPath, { kind });
+    let kind: FileKind;
+    let inputPath: string;
+    let inspection: FileInspection;
+    try {
+      this.allow(context, "import:upload");
+      kind = await detectFileKind(receivedPath);
+      inputPath = join(workspace.dir, `original.${kind}`);
+      await rename(receivedPath, inputPath);
+      inspection = await inspectFile(inputPath, { kind });
+    } catch (error) {
+      await removeWorkspace(workspace);
+      throw error;
+    }
     const session: Session = {
       id: workspace.id,
       organisationId: context.organisationId,
@@ -157,8 +164,16 @@ export class ImportService {
     format: OutputFormat,
   ) {
     const session = this.session(context, id);
+    this.allow(context, "import:upload");
+    const running = this.job(context, id);
+    if (running?.state === "pending" || running?.state === "processing") {
+      return running;
+    }
     session.options = { mapping, format };
-    const outputPath = join(session.workspace.dir, `processed.${format}`);
+    const outputPath = join(
+      session.workspace.dir,
+      `processed-${randomUUID()}.${format}`,
+    );
     const job = this.jobs.submit(context, session.id, (signal, report) =>
       processShipments({
         inputPath: session.inputPath,
@@ -214,6 +229,7 @@ export class ImportService {
     context: AccessContext,
     id: string,
   ): Promise<ImportManifest> {
+    this.allow(context, "import:upload");
     const { session, summary, outputPath, options } = this.finished(
       context,
       id,
@@ -243,6 +259,7 @@ export class ImportService {
 
   async discard(context: AccessContext, id: string): Promise<void> {
     const session = this.session(context, id);
+    this.allow(context, "import:upload");
     this.cancel(context, id);
     this.sessions.delete(id);
     await removeWorkspace(session.workspace);

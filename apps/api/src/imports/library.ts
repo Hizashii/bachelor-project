@@ -10,7 +10,11 @@ import { type Draft, DraftStore } from "./drafts.ts";
 import type { ImportService } from "./importService.ts";
 import { missingRequiredFields } from "./inspect.ts";
 import { MappingStore } from "./mappingStore.ts";
-import { createWorkspace, type Workspace } from "./tempFiles.ts";
+import {
+  createWorkspace,
+  removeWorkspace,
+  type Workspace,
+} from "./tempFiles.ts";
 
 export class DraftNotFoundError extends Error {}
 
@@ -66,6 +70,7 @@ export class ImportLibrary {
     name: string,
     mapping: ColumnMapping,
   ) {
+    this.imports.allow(context, "import:upload");
     const { headers } = this.imports.sourceOf(context, id);
     return this.mappings.save(context, headers, name, mapping);
   }
@@ -76,6 +81,7 @@ export class ImportLibrary {
     mapping: ColumnMapping,
     format: Draft["format"],
   ): Promise<Draft> {
+    this.imports.allow(context, "import:upload");
     const source = this.imports.sourceOf(context, id);
     return this.drafts
       .save(context, {
@@ -93,6 +99,7 @@ export class ImportLibrary {
   }
 
   listDrafts(context: AccessContext) {
+    this.imports.allow(context, "import:read");
     return this.drafts.list(context);
   }
 
@@ -102,7 +109,12 @@ export class ImportLibrary {
     if (draft?.status !== "open") throw new DraftNotFoundError();
     const workspace = await createWorkspace();
     const received = join(workspace.dir, "draft.tmp");
-    await this.drafts.downloadOriginal(context, draft, received);
+    try {
+      await this.drafts.downloadOriginal(context, draft, received);
+    } catch (error) {
+      await removeWorkspace(workspace);
+      throw error;
+    }
     const opened = await this.imports.open(
       context,
       workspace,
@@ -120,6 +132,7 @@ export class ImportLibrary {
   }
 
   async discardDraft(context: AccessContext, draftId: string): Promise<void> {
+    this.imports.allow(context, "import:upload");
     if (!(await this.drafts.discard(context, draftId)))
       throw new DraftNotFoundError();
   }

@@ -84,7 +84,9 @@ export function calculatePrice(
     return unpriced("no_zone", "No zone covers the destination postcode.");
   const quantity = quantities(shipment)[tariff.method];
   const singleBracket =
-    tariff.method === "per_shipment" && tariff.brackets.length <= 1;
+    tariff.method === "per_shipment" &&
+    tariff.brackets.length === 1 &&
+    tariff.brackets[0]?.to === null;
   if (quantity === null && !singleBracket) {
     return unpriced(
       "missing_quantity",
@@ -146,10 +148,16 @@ function checkEligibility(
     : null;
 }
 
+// Quantities beyond this cannot be real and would overflow the exact arithmetic.
+const MAX_QUANTITY = 1_000_000_000;
+
 function exceedsRestriction(tariff: Tariff, shipment: PriceShipment): boolean {
   const { restrictions: r } = tariff;
   const over = (value: number | null, max: number | null) =>
-    value !== null && max !== null && value > max;
+    value !== null &&
+    (!Number.isFinite(value) ||
+      value > MAX_QUANTITY ||
+      (max !== null && value > max));
   return (
     over(shipment.weightKg, r.maxWeightKg) ||
     over(shipment.pallets, r.maxPallets) ||

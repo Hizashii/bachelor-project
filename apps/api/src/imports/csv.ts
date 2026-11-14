@@ -2,6 +2,8 @@
 // Handles quoted fields, doubled quotes and line breaks inside quotes.
 // Not for opening files: see readRows.ts.
 
+import { importLimits } from "./limits.ts";
+
 export const CSV_DELIMITERS = [";", ",", "\t"] as const;
 export type CsvDelimiter = (typeof CSV_DELIMITERS)[number];
 
@@ -10,6 +12,8 @@ export function sniffDelimiter(sample: string): CsvDelimiter {
   const counts = CSV_DELIMITERS.map((mark) => firstLine.split(mark).length);
   return CSV_DELIMITERS[counts.indexOf(Math.max(...counts))] ?? ";";
 }
+
+export class CsvFieldTooLongError extends Error {}
 
 export class CsvParser {
   private row: string[] = [];
@@ -52,7 +56,7 @@ export class CsvParser {
     }
     if (this.inQuotes) {
       if (char === '"') this.quoteSeen = true;
-      else this.field += char;
+      else this.append(char);
       return;
     }
     this.consumeUnquoted(char, rows);
@@ -64,7 +68,14 @@ export class CsvParser {
     else if (char === "\n" || char === "\r") {
       this.skipLineFeed = char === "\r";
       this.finishRow(rows);
-    } else this.field += char;
+    } else this.append(char);
+  }
+
+  private append(char: string): void {
+    if (this.field.length >= importLimits.maxCellLength) {
+      throw new CsvFieldTooLongError();
+    }
+    this.field += char;
   }
 
   private finishField(): void {

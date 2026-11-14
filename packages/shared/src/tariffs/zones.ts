@@ -52,16 +52,18 @@ export function validateZones(
 function findCollisions(intervals: readonly Labelled[]): ZoneProblem[] {
   const problems: ZoneProblem[] = [];
   const sorted = [...intervals].sort((a, b) => a.interval.low - b.interval.low);
-  sorted.forEach((current, index) => {
-    for (const next of sorted.slice(index + 1)) {
-      if (next.interval.low > current.interval.high) break;
-      const zoneIds: [string, string] = [current.zoneId, next.zoneId];
+  for (let index = 0; index < sorted.length; index += 1) {
+    const current = sorted[index] as Labelled;
+    for (let next = index + 1; next < sorted.length; next += 1) {
+      const other = sorted[next] as Labelled;
+      if (other.interval.low > current.interval.high) break;
+      const zoneIds: [string, string] = [current.zoneId, other.zoneId];
       const same =
-        current.interval.low === next.interval.low &&
-        current.interval.high === next.interval.high;
+        current.interval.low === other.interval.low &&
+        current.interval.high === other.interval.high;
       problems.push({ code: same ? "duplicate_range" : "overlap", zoneIds });
     }
-  });
+  }
   return problems;
 }
 
@@ -109,6 +111,7 @@ export function postcodeInRanges(
   ranges: readonly TariffPostcodeRange[],
   length: number,
 ): boolean {
+  if (!/^\d+$/.test(postcode)) return false;
   const value = Number(postcode);
   return ranges.some((range) => {
     const interval = rangeToInterval(range, length);

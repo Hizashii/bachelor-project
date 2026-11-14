@@ -17,6 +17,8 @@ export type TariffError =
   | { code: "no_brackets" }
   | { code: "bracket_must_start_at_zero" }
   | { code: "bracket_gap_or_overlap"; bracketIndex: number }
+  | { code: "bracket_not_increasing"; bracketIndex: number }
+  | { code: "duplicate_rate"; zoneId: string; bracketIndex: number }
   | { code: "bracket_open_end_not_last"; bracketIndex: number }
   | { code: "missing_rate"; zoneId: string; bracketIndex: number }
   | { code: "rate_for_unknown_cell"; zoneId: string; bracketIndex: number }
@@ -76,6 +78,9 @@ function bracketErrors(tariff: Tariff): TariffError[] {
     if (previous && previous.to !== bracket.from) {
       errors.push({ code: "bracket_gap_or_overlap", bracketIndex: index });
     }
+    if (bracket.to !== null && bracket.to <= bracket.from) {
+      errors.push({ code: "bracket_not_increasing", bracketIndex: index });
+    }
     const isLast = index === brackets.length - 1;
     if (bracket.to === null && !isLast) {
       errors.push({ code: "bracket_open_end_not_last", bracketIndex: index });
@@ -96,7 +101,17 @@ function rateErrors(tariff: Tariff): TariffError[] {
       }
     });
   }
+  const seen = new Set<string>();
   for (const rate of tariff.rates) {
+    const cell = `${rate.zoneId}|${rate.bracketIndex}`;
+    if (seen.has(cell)) {
+      errors.push({
+        code: "duplicate_rate",
+        zoneId: rate.zoneId,
+        bracketIndex: rate.bracketIndex,
+      });
+    }
+    seen.add(cell);
     const knownZone = tariff.zones.some((zone) => zone.id === rate.zoneId);
     if (!knownZone || rate.bracketIndex >= tariff.brackets.length) {
       errors.push({

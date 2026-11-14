@@ -138,9 +138,16 @@ describe("tariff workflow", () => {
 
   it("reports a stale editor instead of overwriting newer work", async () => {
     const { tariffs } = setup();
-    await tariffs.saveDraft(carrier, draft);
-    await tariffs.saveDraft(carrier, { ...draft, minimumChargeMinor: 5 });
-    await expect(tariffs.saveDraft(carrier, draft, "1")).rejects.toBeInstanceOf(
+    const first = await tariffs.saveDraft(carrier, draft);
+    await tariffs.saveDraft(
+      carrier,
+      { ...draft, minimumChargeMinor: 5 },
+      first.etag,
+    );
+    await expect(
+      tariffs.saveDraft(carrier, draft, first.etag),
+    ).rejects.toBeInstanceOf(StorageConflictError);
+    await expect(tariffs.saveDraft(carrier, draft)).rejects.toBeInstanceOf(
       StorageConflictError,
     );
   });
@@ -162,5 +169,31 @@ describe("tariff workflow", () => {
       },
     );
     expect(price?.result).toEqual({ status: "no_tariff" });
+  });
+
+  it("prices the other carriers when one tariff cannot be read", async () => {
+    const { store, tariffs, pricing } = setup();
+    await tariffs.saveDraft(carrier, draft);
+    store.files.set("tariffs/carrier-b/t-2/v1.json", {
+      value: { broken: true },
+      etag: 1,
+    });
+    const prices = await pricing.priceCarriers(
+      staff,
+      [
+        { organisationId: "carrier-b", tariffId: "t-2" },
+        { organisationId: "carrier-a", tariffId: "t-1" },
+      ],
+      {
+        originPostcode: "8300",
+        destinationPostcode: "2680",
+        date: "2026-03-05",
+        weightKg: 1e308,
+        pallets: null,
+        loadingMeters: null,
+        cubicMeters: null,
+      },
+    );
+    expect(prices.map((p) => p.result.status)).toEqual(["error", "no_tariff"]);
   });
 });

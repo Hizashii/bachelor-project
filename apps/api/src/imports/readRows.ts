@@ -6,8 +6,14 @@ import { createReadStream } from "node:fs";
 import { open, stat } from "node:fs/promises";
 import type { RawCell } from "@freight-desk/shared";
 import ExcelJS from "exceljs";
-import { type CsvDelimiter, CsvParser, sniffDelimiter } from "./csv.ts";
+import {
+  type CsvDelimiter,
+  CsvFieldTooLongError,
+  CsvParser,
+  sniffDelimiter,
+} from "./csv.ts";
 import { importLimits } from "./limits.ts";
+import { assertSafeXlsx, ZipTooLargeError } from "./zipCheck.ts";
 
 export type FileKind = "xlsx" | "csv";
 
@@ -73,6 +79,20 @@ async function* readCsv(
   path: string,
   options: ReadOptions,
 ): AsyncGenerator<RawCell[]> {
+  try {
+    yield* parseCsv(path, options);
+  } catch (error) {
+    if (error instanceof CsvFieldTooLongError) {
+      throw new UnreadableFileError("A cell in the file is too long.");
+    }
+    throw error;
+  }
+}
+
+async function* parseCsv(
+  path: string,
+  options: ReadOptions,
+): AsyncGenerator<RawCell[]> {
   const sample = await readSample(path);
   const encoding = options.encoding ?? guessEncoding(sample);
   const decoder = new TextDecoder(encoding);
@@ -100,8 +120,18 @@ function guessEncoding(sample: Buffer): "utf-8" | "windows-1252" {
 
 // The streaming reader needs workbook.xml before the sheets inside the zip. Files that
 // order it differently are read with the regular reader instead, which holds the whole
-// sheet in memory; the file size limit keeps that bounded.
+// sheet in memory, so it is used only when the expanded size is small.
 async function* readXlsx(path: string): AsyncGenerator<RawCell[]> {
+  let expanded: number;
+  try {
+    expanded = await assertSafeXlsx(path);
+  } catch (error) {
+    throw new UnreadableFileError(
+      error instanceof ZipTooLargeError
+        ? error.message
+        : "The Excel file could not be read.",
+    );
+  }
   let yielded = false;
   try {
     for await (const row of streamXlsx(path)) {
@@ -110,6 +140,7 @@ async function* readXlsx(path: string): AsyncGenerator<RawCell[]> {
     }
   } catch (error) {
     if (yielded) throw unreadableExcel(error);
+    if (expanded > importLimits.maxFallbackBytes) throw unreadableExcel(error);
     yield* loadXlsx(path);
   }
 }

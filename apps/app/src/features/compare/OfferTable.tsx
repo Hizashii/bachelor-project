@@ -32,6 +32,7 @@ function priceText(copy: Copy, price: OfferLine["price"]): string {
     return formatMoney(price.totalMinor, price.currency);
   if (price.status === "unpriced")
     return copy[failureText[price.reason]] as string;
+  if (price.status === "error") return copy.priceError;
   return price.status === "no_tariff" ? copy.noActiveTariff : copy.noAccess;
 }
 

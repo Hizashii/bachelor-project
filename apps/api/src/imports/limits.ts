@@ -11,6 +11,10 @@ function fromEnv(name: string, fallback: number): number {
 export const importLimits = {
   maxFileBytes: fromEnv("IMPORT_MAX_FILE_MB", 100) * BYTES_PER_MEGABYTE,
   maxRows: fromEnv("IMPORT_MAX_ROWS", 500_000),
+  maxUncompressedBytes:
+    fromEnv("IMPORT_MAX_UNCOMPRESSED_MB", 500) * BYTES_PER_MEGABYTE,
+  maxFallbackBytes: 50 * BYTES_PER_MEGABYTE,
+  maxCellLength: 32_767,
   maxSheetColumns: fromEnv("IMPORT_MAX_COLUMNS", 200),
   maxConcurrentJobs: fromEnv("IMPORT_MAX_CONCURRENT_JOBS", 2),
   maxAttempts: fromEnv("IMPORT_MAX_ATTEMPTS", 3),

@@ -21,6 +21,15 @@ export const tariffStatusSchema = z.enum([
   "archived",
 ]);
 
+// Ids end up in storage paths, so only letters, digits and dashes are allowed.
+export const safeIdSchema = z.string().regex(/^[A-Za-z0-9-]{1,64}$/);
+
+const MAX_ZONES = 500;
+const MAX_RANGES_PER_ZONE = 500;
+const MAX_BRACKETS = 200;
+const MAX_RATES = 100_000;
+const MIN_QUANTITY_STEP = 0.001;
+
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 // A postcode range is written with as many digits as the carrier uses: "26" to "29"
@@ -36,7 +45,7 @@ export const tariffZoneSchema = z
   .object({
     id: z.string().min(1),
     name: z.string().min(1),
-    ranges: z.array(tariffPostcodeRangeSchema),
+    ranges: z.array(tariffPostcodeRangeSchema).max(MAX_RANGES_PER_ZONE),
   })
   .strict();
 
@@ -103,20 +112,20 @@ export const restrictionsSchema = z
 
 export const tariffSchema = z
   .object({
-    tariffId: z.string().min(1),
+    tariffId: safeIdSchema,
     version: z.number().int().positive(),
-    carrierOrganisationId: z.string().min(1),
+    carrierOrganisationId: safeIdSchema,
     status: tariffStatusSchema,
     currency: z.string().regex(/^[A-Z]{3}$/),
     method: pricingMethodSchema,
     postcodeLength: z.number().int().min(1).max(5),
     effectiveFrom: isoDateSchema,
     effectiveTo: isoDateSchema.nullable(),
-    zones: z.array(tariffZoneSchema),
-    brackets: z.array(bracketSchema),
-    rates: z.array(rateSchema),
+    zones: z.array(tariffZoneSchema).max(MAX_ZONES),
+    brackets: z.array(bracketSchema).max(MAX_BRACKETS),
+    rates: z.array(rateSchema).max(MAX_RATES),
     // Smallest step the chargeable quantity is rounded up to, for example 0.1 LDM.
-    quantityStep: z.number().positive().nullable(),
+    quantityStep: z.number().min(MIN_QUANTITY_STEP).nullable(),
     minimumChargeMinor: z.number().int().nonnegative().nullable(),
     // Price is rounded to a multiple of this many minor units (1 means no rounding).
     roundingStepMinor: z.number().int().positive(),

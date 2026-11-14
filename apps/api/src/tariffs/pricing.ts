@@ -16,7 +16,11 @@ export type CarrierRef = { organisationId: string; tariffId: string };
 export type CarrierPrice = {
   organisationId: string;
   tariffId: string;
-  result: PriceResult | { status: "no_tariff" } | { status: "denied" };
+  result:
+    | PriceResult
+    | { status: "no_tariff" }
+    | { status: "denied" }
+    | { status: "error" };
 };
 
 type Dependencies = { tariffs: TariffService; permissions: PermissionChecker };
@@ -50,12 +54,19 @@ export class PricingService {
     if (!this.deps.permissions.can(context, "price:calculate", resource)) {
       return { status: "denied" };
     }
-    const versions = await this.deps.tariffs.listVersions(
-      context,
-      carrier.organisationId,
-      carrier.tariffId,
-    );
-    const tariff = selectVersion(versions, shipment.date);
-    return tariff ? calculatePrice(tariff, shipment) : { status: "no_tariff" };
+    try {
+      const versions = await this.deps.tariffs.listVersions(
+        context,
+        carrier.organisationId,
+        carrier.tariffId,
+      );
+      const tariff = selectVersion(versions, shipment.date);
+      return tariff
+        ? calculatePrice(tariff, shipment)
+        : { status: "no_tariff" };
+    } catch {
+      // One carrier's unreadable tariff must not stop the others from being priced.
+      return { status: "error" };
+    }
   }
 }

@@ -20,7 +20,11 @@ import {
 import { DraftNotFoundError, type ImportLibrary } from "../imports/library.ts";
 import { MappingError } from "../imports/processShipments.ts";
 import { UnreadableFileError } from "../imports/readRows.ts";
-import { removeWorkspace, resolveDownload } from "../imports/tempFiles.ts";
+import {
+  removeWorkspace,
+  resolveDownload,
+  sweepExpired,
+} from "../imports/tempFiles.ts";
 import type { PricingService } from "../tariffs/pricing.ts";
 import {
   TariffAccessError,
@@ -36,6 +40,9 @@ export type FreightDependencies = {
   tariffs: TariffService;
   pricing: PricingService;
 };
+
+const SWEEP_EVERY_MS = 5 * 60_000;
+const MAX_QUANTITY = 1_000_000;
 
 const idSchema = z.string().uuid();
 const idParams = z.object({ id: idSchema });
@@ -54,10 +61,10 @@ const shipmentSchema = z
     originPostcode: z.string().nullable(),
     destinationPostcode: z.string().nullable(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    weightKg: z.number().nonnegative().nullable(),
-    pallets: z.number().nonnegative().nullable(),
-    loadingMeters: z.number().nonnegative().nullable(),
-    cubicMeters: z.number().nonnegative().nullable(),
+    weightKg: z.number().nonnegative().max(MAX_QUANTITY).nullable(),
+    pallets: z.number().nonnegative().max(MAX_QUANTITY).nullable(),
+    loadingMeters: z.number().nonnegative().max(MAX_QUANTITY).nullable(),
+    cubicMeters: z.number().nonnegative().max(MAX_QUANTITY).nullable(),
   })
   .strict();
 const compareBody = z
@@ -102,6 +109,11 @@ export function registerFreightRoutes(
   app: FastifyInstance,
   deps: FreightDependencies,
 ): void {
+  const sweep = setInterval(() => {
+    void sweepExpired().catch(() => undefined);
+  }, SWEEP_EVERY_MS);
+  sweep.unref();
+  app.addHook("onClose", async () => clearInterval(sweep));
   app.addContentTypeParser(
     "application/octet-stream",
     (_request, payload, done) => done(null, payload),
@@ -297,6 +309,7 @@ function registerTariffRoutes(
     { bodyLimit: Number.MAX_SAFE_INTEGER },
     guarded(async (context, request) => {
       nameQuery.parse(request.query);
+      tariffs.assertCanEdit(context);
       const { workspace, path } = await receiveUpload(
         request.body as NodeJS.ReadableStream,
       );

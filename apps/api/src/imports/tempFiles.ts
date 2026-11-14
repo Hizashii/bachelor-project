@@ -12,6 +12,7 @@ import { importLimits } from "./limits.ts";
 const ROOT = join(tmpdir(), "freight-desk-imports");
 const TOKEN_BYTES = 32;
 const MS_PER_MINUTE = 60_000;
+const PRIVATE_FOLDER_MODE = 0o700;
 
 export type Workspace = { id: string; dir: string };
 
@@ -27,7 +28,7 @@ const downloads = new Map<string, DownloadEntry>();
 export async function createWorkspace(): Promise<Workspace> {
   const id = randomUUID();
   const dir = join(ROOT, id);
-  await mkdir(dir, { recursive: true });
+  await mkdir(dir, { recursive: true, mode: PRIVATE_FOLDER_MODE });
   return { id, dir };
 }
 
@@ -73,8 +74,8 @@ export async function sweepExpired(now = Date.now()): Promise<number> {
   let removed = 0;
   for (const folder of folders) {
     const path = join(ROOT, folder);
-    const { mtimeMs } = await stat(path);
-    if (now - mtimeMs < maxAge) continue;
+    const info = await stat(path).catch(() => null);
+    if (!info || now - info.mtimeMs < maxAge) continue;
     await rm(path, { recursive: true, force: true });
     removed += 1;
   }
