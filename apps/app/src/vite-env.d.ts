@@ -5,6 +5,14 @@ declare module "react" {
   export function useState<T>(
     initialValue: T,
   ): [T, (value: T | ((currentValue: T) => T)) => void];
+  export function useCallback<T extends (...args: never[]) => unknown>(
+    callback: T,
+    dependencies: readonly unknown[],
+  ): T;
+  export function useEffect(
+    effect: () => unknown,
+    dependencies?: readonly unknown[],
+  ): void;
 }
 
 declare module "react-dom/client" {
@@ -28,6 +36,14 @@ declare module "react-router" {
 }
 
 declare module "*.css";
+
+interface ImportMetaEnv {
+  readonly VITE_API_ORIGIN?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
 
 declare module "react/jsx-runtime" {
   export function jsx(type: unknown, properties: unknown): unknown;
