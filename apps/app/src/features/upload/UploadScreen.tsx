@@ -34,6 +34,9 @@ export function UploadScreen({ locale }: { locale: Locale }): ReactElement {
       {session.inspection ? null : (
         <FileChooser copy={copy} busy={session.busy} onFile={session.open} />
       )}
+      {session.inspection ? null : (
+        <DraftList copy={copy} library={session.library} />
+      )}
       {session.inspection && !flow.job ? (
         <MappingStep copy={copy} session={session} flow={flow} />
       ) : null}
@@ -117,6 +120,13 @@ function MappingStep({ copy, session, flow }: StepProps) {
     <section className="upload-step">
       <h2>{copy.mappingTitle}</h2>
       <p>{copy.mappingHint}</p>
+      {session.known ? (
+        <p role="status">
+          {copy.knownSetup
+            .replace("{name}", session.known.name)
+            .replace("{version}", String(session.known.version))}
+        </p>
+      ) : null}
       <MappingTable
         copy={copy}
         inspection={inspection}
@@ -184,6 +194,39 @@ function MappingStep({ copy, session, flow }: StepProps) {
           {copy.startProcessing}
         </button>
       </div>
+      <div className="upload-actions">
+        <button
+          className="button button-secondary"
+          type="button"
+          disabled={session.library.draftState === "saving"}
+          onClick={() => session.library.saveDraft(flow.format)}
+        >
+          {copy.saveDraft}
+        </button>
+        <button
+          className="button button-secondary"
+          type="button"
+          disabled={session.busy}
+          onClick={session.library.remember}
+        >
+          {copy.rememberSetup}
+        </button>
+      </div>
+      {session.library.draftState === "saved" ? (
+        <p className="saved-message" role="status">
+          ✓ {copy.draftSaved}
+        </p>
+      ) : null}
+      {session.library.draftState === "failed" ? (
+        <p className="upload-error" role="alert">
+          {copy.draftSaveFailed}
+        </p>
+      ) : null}
+      {session.library.remembered ? (
+        <p className="saved-message" role="status">
+          ✓ {copy.setupRemembered}
+        </p>
+      ) : null}
       {session.sample ? (
         <p role="status">
           {copy.sampleResult
@@ -191,6 +234,44 @@ function MappingStep({ copy, session, flow }: StepProps) {
             .replace("{total}", String(session.sample.length))}
         </p>
       ) : null}
+    </section>
+  );
+}
+
+type DraftListProps = {
+  copy: Copy;
+  library: ReturnType<typeof useImportSession>["library"];
+};
+
+function DraftList({ copy, library }: DraftListProps) {
+  if (library.drafts.length === 0) return null;
+  return (
+    <section className="upload-step">
+      <h2>{copy.openDrafts}</h2>
+      <div className="white-card upload-panel">
+        {library.drafts.map((draft) => (
+          <div className="upload-actions" key={draft.draftId}>
+            <span>
+              {draft.originalName} ·{" "}
+              {new Date(draft.savedAt).toLocaleString("da-DK")}
+            </span>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() => library.reopen(draft.draftId)}
+            >
+              {copy.openDraft}
+            </button>
+            <button
+              className="text-link"
+              type="button"
+              onClick={() => library.discardDraft(draft.draftId)}
+            >
+              {copy.discardDraft}
+            </button>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

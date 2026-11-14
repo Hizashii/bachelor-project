@@ -4,14 +4,17 @@
 import { apiFetch, postJson } from "../../api/client";
 import type {
   ColumnMapping,
-  FileInspection,
+  DraftSummary,
   JobView,
+  OpenedImport,
   ProcessSummaryView,
   SampleRow,
 } from "./types";
 
+type Format = "xlsx" | "csv";
+
 export function uploadFile(file: File) {
-  return apiFetch<{ sessionId: string; inspection: FileInspection }>(
+  return apiFetch<OpenedImport>(
     `/api/imports?name=${encodeURIComponent(file.name)}`,
     {
       method: "POST",
@@ -30,7 +33,7 @@ export function checkSample(sessionId: string, mapping: ColumnMapping) {
 export function startProcessing(
   sessionId: string,
   mapping: ColumnMapping,
-  format: "xlsx" | "csv",
+  format: Format,
 ) {
   return postJson<JobView>(`/api/imports/${sessionId}/process`, {
     mapping,
@@ -62,3 +65,31 @@ export async function downloadResult(sessionId: string): Promise<undefined> {
 
 export const discardImport = (sessionId: string) =>
   apiFetch<{ ok: boolean }>(`/api/imports/${sessionId}`, { method: "DELETE" });
+
+export const saveDraft = (
+  sessionId: string,
+  mapping: ColumnMapping,
+  format: Format,
+) =>
+  postJson<DraftSummary>(`/api/imports/${sessionId}/draft`, {
+    mapping,
+    format,
+  });
+
+export const rememberMapping = (
+  sessionId: string,
+  name: string,
+  mapping: ColumnMapping,
+) =>
+  postJson<unknown>(`/api/imports/${sessionId}/remember-mapping`, {
+    name,
+    mapping,
+  });
+
+export const listDrafts = () => apiFetch<DraftSummary[]>("/api/drafts");
+
+export const reopenDraft = (draftId: string) =>
+  postJson<OpenedImport>(`/api/drafts/${draftId}/reopen`, {});
+
+export const discardDraft = (draftId: string) =>
+  apiFetch<{ ok: boolean }>(`/api/drafts/${draftId}`, { method: "DELETE" });

@@ -99,7 +99,7 @@ export class ImportLibrary {
   // Brings a draft back into a new session with the column choices it was saved with.
   async reopenDraft(context: AccessContext, draftId: string) {
     const draft = await this.drafts.get(context, draftId);
-    if (!draft || draft.status !== "open") throw new DraftNotFoundError();
+    if (draft?.status !== "open") throw new DraftNotFoundError();
     const workspace = await createWorkspace();
     const received = join(workspace.dir, "draft.tmp");
     await this.drafts.downloadOriginal(context, draft, received);

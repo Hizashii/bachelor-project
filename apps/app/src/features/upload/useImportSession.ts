@@ -1,8 +1,15 @@
 // The first half of an upload: choose a file, adjust the column choices, check a sample.
+// Drafts and remembered setups live in useDraftLibrary.
 
 import { useState } from "react";
-import type { ColumnMapping, FileInspection, SampleRow } from "./types";
+import type {
+  ColumnMapping,
+  FileInspection,
+  OpenedImport,
+  SampleRow,
+} from "./types";
 import * as api from "./uploadApi";
+import { useDraftLibrary } from "./useDraftLibrary";
 import { useRunner } from "./useRunner";
 
 export function useImportSession() {
@@ -11,14 +18,22 @@ export function useImportSession() {
   const [inspection, setInspection] = useState<FileInspection | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [sample, setSample] = useState<SampleRow[] | null>(null);
+  const [known, setKnown] = useState<OpenedImport["knownTemplate"]>(null);
 
-  const open = (file: File) =>
-    run(async () => {
-      const opened = await api.uploadFile(file);
-      setSessionId(opened.sessionId);
-      setInspection(opened.inspection);
-      setMapping(opened.inspection.mapping);
-    });
+  const accept = (opened: OpenedImport) => {
+    setSessionId(opened.sessionId);
+    setInspection(opened.inspection);
+    setMapping(opened.inspection.mapping);
+    setKnown(opened.knownTemplate ?? null);
+    library.reset();
+  };
+  const library = useDraftLibrary(
+    sessionId,
+    mapping,
+    inspection?.headers ?? [],
+    run,
+    accept,
+  );
 
   const startOver = () =>
     run(async () => {
@@ -28,11 +43,6 @@ export function useImportSession() {
       setSample(null);
     });
 
-  const checkSample = () =>
-    run(async () => {
-      if (sessionId) setSample(await api.checkSample(sessionId, mapping));
-    });
-
   return {
     busy,
     error,
@@ -40,9 +50,14 @@ export function useImportSession() {
     inspection,
     mapping,
     sample,
+    known,
+    library,
     setMapping,
-    open,
     startOver,
-    checkSample,
+    open: (file: File) => run(async () => accept(await api.uploadFile(file))),
+    checkSample: () =>
+      run(async () => {
+        if (sessionId) setSample(await api.checkSample(sessionId, mapping));
+      }),
   };
 }

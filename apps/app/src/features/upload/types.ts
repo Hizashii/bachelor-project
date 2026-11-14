@@ -20,6 +20,19 @@ export type FileInspection = {
   previewRows: RawCell[][];
 };
 
+export type OpenedImport = {
+  sessionId: string;
+  inspection: FileInspection;
+  knownTemplate?: { name: string; version: number } | null;
+  format?: "xlsx" | "csv";
+};
+
+export type DraftSummary = {
+  draftId: string;
+  originalName: string;
+  savedAt: string;
+};
+
 export type SampleRow = { shipment: CleanShipment; issues: RowIssue[] };
 
 export type ProcessSummaryView = {
