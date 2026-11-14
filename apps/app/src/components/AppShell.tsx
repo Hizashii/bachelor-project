@@ -59,7 +59,9 @@ function PrimaryNav({ copy }: { copy: ReturnType<typeof getCopy> }) {
   return (
     <nav className="primary-nav" aria-label="Primary navigation">
       <span className="nav-link nav-link-muted">{copy.overview}</span>
-      <span className="nav-link nav-link-muted">{copy.upload}</span>
+      <NavLink className="nav-link" to="/files">
+        {copy.upload}
+      </NavLink>
       <NavLink className="nav-link" to="/compare">
         {copy.compare}
       </NavLink>
