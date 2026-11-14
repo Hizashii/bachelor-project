@@ -109,7 +109,7 @@ export function ResultPanel({
             disabled={saveState === "saving"}
             onClick={onSave}
           >
-            {saveState === "saving" ? copy.savingNow : copy.saveToCloud}
+            {saveState === "saving" ? copy.savingNow : copy.saveImportToCloud}
           </button>
           <small>{copy.saveToCloudHint}</small>
         </div>

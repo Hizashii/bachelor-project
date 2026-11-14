@@ -62,6 +62,9 @@ function PrimaryNav({ copy }: { copy: ReturnType<typeof getCopy> }) {
       <NavLink className="nav-link" to="/upload">
         {copy.upload}
       </NavLink>
+      <NavLink className="nav-link" to="/files">
+        {copy.files}
+      </NavLink>
       <NavLink className="nav-link" to="/compare">
         {copy.compare}
       </NavLink>

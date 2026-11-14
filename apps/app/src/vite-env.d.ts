@@ -45,6 +45,14 @@ declare module "react-router" {
 
 declare module "*.css";
 
+interface ImportMetaEnv {
+  readonly VITE_API_ORIGIN?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare module "react/jsx-runtime" {
   export function jsx(type: unknown, properties: unknown): unknown;
   export function jsxs(type: unknown, properties: unknown): unknown;
