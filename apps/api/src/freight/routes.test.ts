@@ -4,6 +4,7 @@ import Fastify from "fastify";
 import { describe, expect, it } from "vitest";
 import type { AccessContext } from "../contracts/access.ts";
 import { ImportService } from "../imports/importService.ts";
+import { ImportLibrary } from "../imports/library.ts";
 import { PricingService } from "../tariffs/pricing.ts";
 import { TariffService } from "../tariffs/service.ts";
 import { createMemoryStore, rolePermissions } from "../testing/memoryStore.ts";
@@ -19,10 +20,12 @@ function buildApp() {
   const store = createMemoryStore();
   const tariffs = new TariffService({ store, permissions: rolePermissions });
   const app = Fastify();
+  const imports = new ImportService({ store, permissions: rolePermissions });
   registerFreightRoutes(app, {
     getContext: (request) =>
       users[String(request.headers["x-test-user"])] ?? null,
-    imports: new ImportService({ store, permissions: rolePermissions }),
+    imports,
+    library: new ImportLibrary(imports, store),
     tariffs,
     pricing: new PricingService({ tariffs, permissions: rolePermissions }),
   });

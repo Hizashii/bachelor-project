@@ -17,6 +17,7 @@ import {
   type ImportService,
   ImportStateError,
 } from "../imports/importService.ts";
+import { DraftNotFoundError, type ImportLibrary } from "../imports/library.ts";
 import { MappingError } from "../imports/processShipments.ts";
 import { UnreadableFileError } from "../imports/readRows.ts";
 import { removeWorkspace, resolveDownload } from "../imports/tempFiles.ts";
@@ -31,6 +32,7 @@ import { receiveUpload, UploadTooLargeError } from "./upload.ts";
 export type FreightDependencies = {
   getContext: (request: FastifyRequest) => AccessContext | null;
   imports: ImportService;
+  library: ImportLibrary;
   tariffs: TariffService;
   pricing: PricingService;
 };
@@ -71,6 +73,7 @@ const compareBody = z
 
 const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
   [ImportAccessError, 404, "We could not find that file."],
+  [DraftNotFoundError, 404, "We could not find that draft."],
   [TariffAccessError, 403, "You do not have access to that."],
   [ImportStateError, 409, "The file is not ready for that yet."],
   [TariffStateError, 409, "That change is not allowed for this tariff."],
@@ -139,7 +142,7 @@ function registerImportRoutes(
   deps: FreightDependencies,
   guarded: Guard,
 ): void {
-  const { imports } = deps;
+  const { imports, library } = deps;
   const idOf = (request: FastifyRequest) => idParams.parse(request.params).id;
 
   app.post(
@@ -150,7 +153,7 @@ function registerImportRoutes(
       const { workspace, path } = await receiveUpload(
         request.body as NodeJS.ReadableStream,
       );
-      return imports.open(context, workspace, name, path);
+      return library.openUpload(context, workspace, name, path);
     }),
   );
   app.post(
@@ -162,6 +165,51 @@ function registerImportRoutes(
         previewBody.parse(request.body).mapping,
       ),
     ),
+  );
+  app.post(
+    "/api/imports/:id/remember-mapping",
+    guarded((context, request) => {
+      const body = z
+        .object({
+          name: z.string().min(1).max(100),
+          mapping: columnMappingSchema,
+        })
+        .strict()
+        .parse(request.body);
+      return library.rememberMapping(
+        context,
+        idOf(request),
+        body.name,
+        body.mapping,
+      );
+    }),
+  );
+  app.post(
+    "/api/imports/:id/draft",
+    guarded((context, request) => {
+      const body = processBody.parse(request.body);
+      return library.saveDraft(
+        context,
+        idOf(request),
+        body.mapping,
+        body.format,
+      );
+    }),
+  );
+  app.get(
+    "/api/drafts",
+    guarded((context) => library.listDrafts(context)),
+  );
+  app.post(
+    "/api/drafts/:id/reopen",
+    guarded((context, request) => library.reopenDraft(context, idOf(request))),
+  );
+  app.delete(
+    "/api/drafts/:id",
+    guarded(async (context, request) => {
+      await library.discardDraft(context, idOf(request));
+      return { ok: true };
+    }),
   );
   app.post(
     "/api/imports/:id/process",

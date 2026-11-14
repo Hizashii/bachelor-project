@@ -118,6 +118,15 @@ export class ImportService {
     return { sessionId: session.id, inspection };
   }
 
+  // What the library needs to know about an open session: where the file is and its columns.
+  sourceOf(context: AccessContext, id: string) {
+    const { inputPath, originalName, kind, inspection } = this.session(
+      context,
+      id,
+    );
+    return { inputPath, originalName, kind, headers: inspection.headers };
+  }
+
   // A small sample cleaned with the chosen mapping, so mistakes show before the full run.
   async previewCleaning(
     context: AccessContext,

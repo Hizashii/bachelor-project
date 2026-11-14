@@ -1,6 +1,7 @@
 // In-memory stand-ins for the FileStore and PermissionChecker contracts.
 // Used by automated tests only; never wired into the running server.
 
+import { readFile, writeFile } from "node:fs/promises";
 import type {
   AccessContext,
   ImportAction,
@@ -17,6 +18,7 @@ export function createMemoryStore(): FileStore & {
   files: Map<string, { value: unknown; etag: number }>;
 } {
   const files = new Map<string, { value: unknown; etag: number }>();
+  const blobs = new Map<string, Buffer>();
   const stored = (path: string, etag: number): StoredFile => ({
     path,
     etag: String(etag),
@@ -48,10 +50,13 @@ export function createMemoryStore(): FileStore & {
         .filter(([path]) => path.startsWith(`${folder}/`))
         .map(([path, file]) => stored(path, file.etag));
     },
-    async putFile(_context, path) {
+    async putFile(_context, path, localPath) {
+      blobs.set(path, await readFile(localPath));
       return stored(path, 1);
     },
-    async getFile() {},
+    async getFile(_context, path, localPath) {
+      await writeFile(localPath, blobs.get(path) ?? Buffer.alloc(0));
+    },
   };
 }
 
