@@ -1,4 +1,5 @@
 export * from "./calculate.ts";
+export * from "./importMatrix.ts";
 export * from "./lifecycle.ts";
 export * from "./money.ts";
 export * from "./tariff.ts";
