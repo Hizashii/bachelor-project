@@ -1,6 +1,8 @@
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createApiApp } from "./app.ts";
+import { buildApi } from "./app.ts";
 import { requestPrincipalResolver } from "./auth.ts";
+import { type ApiEnvironment, loadApiEnvironment } from "./config/env.ts";
 import { MicrosoftGraphClient } from "./storage/graphClient.ts";
 import {
   SharePointStorageAdapter,
@@ -8,48 +10,43 @@ import {
 } from "./storage/sharepointStorage.ts";
 import type { StorageAdapter } from "./storage/types.ts";
 
-export async function startServer(): Promise<void> {
-  const storage = createStorageFromEnvironment();
-  const app = await createApiApp({
+export function createStorage(environment: ApiEnvironment): StorageAdapter {
+  if (environment.SHAREPOINT_MODE !== "graph") {
+    return new UnavailableStorageAdapter();
+  }
+  const graph = new MicrosoftGraphClient({
+    tenantId: environment.SHAREPOINT_TENANT_ID ?? "",
+    clientId: environment.SHAREPOINT_CLIENT_ID ?? "",
+    clientSecret: environment.SHAREPOINT_CLIENT_SECRET ?? "",
+  });
+  return new SharePointStorageAdapter(graph, {
+    driveId: environment.SHAREPOINT_DRIVE_ID ?? "",
+    rootItemId: environment.SHAREPOINT_ROOT_ITEM_ID ?? "",
+    cursorSecret: environment.STORAGE_CURSOR_SECRET ?? "",
+  });
+}
+
+export async function startServer(
+  environment: ApiEnvironment = loadApiEnvironment(),
+) {
+  const storage = createStorage(environment);
+  const server = await buildApi({
+    environment,
     storage,
     resolvePrincipal: requestPrincipalResolver,
   });
   await storage.ensureInitialFolders();
-  const port = Number(process.env.API_PORT ?? 3000);
-  await app.listen({ port, host: "0.0.0.0" });
-}
-
-export function createStorageFromEnvironment(): StorageAdapter {
-  const tenantId = process.env.SHAREPOINT_TENANT_ID;
-  const clientId = process.env.SHAREPOINT_CLIENT_ID;
-  const clientSecret = process.env.SHAREPOINT_CLIENT_SECRET;
-  const driveId = process.env.SHAREPOINT_DRIVE_ID;
-  const rootItemId = process.env.SHAREPOINT_ROOT_ITEM_ID;
-  const cursorSecret =
-    process.env.STORAGE_CURSOR_SECRET ?? process.env.SESSION_SECRET;
-  if (
-    !tenantId ||
-    !clientId ||
-    !clientSecret ||
-    !driveId ||
-    !rootItemId ||
-    !cursorSecret
-  ) {
-    return new UnavailableStorageAdapter();
-  }
-  const graph = new MicrosoftGraphClient({ tenantId, clientId, clientSecret });
-  return new SharePointStorageAdapter(graph, {
-    driveId,
-    rootItemId,
-    cursorSecret,
+  await server.listen({
+    host: environment.API_HOST,
+    port: environment.API_PORT,
   });
+  return server;
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const runningFile = process.argv[1];
+if (runningFile && resolve(runningFile) === fileURLToPath(import.meta.url)) {
   startServer().catch((error: unknown) => {
-    console.error(
-      error instanceof Error ? error.message : "API startup failed.",
-    );
+    console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   });
 }

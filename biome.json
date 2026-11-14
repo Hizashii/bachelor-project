@@ -11,6 +11,10 @@
       "!**/test-results"
     ]
   },
-  "formatter": { "enabled": true, "indentStyle": "space" },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "lineEnding": "crlf"
+  },
   "linter": { "enabled": true }
 }
