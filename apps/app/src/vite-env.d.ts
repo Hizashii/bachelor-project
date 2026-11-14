@@ -3,8 +3,12 @@ declare module "react" {
   export type ReactElement = unknown;
   export type ReactNode = unknown;
   export function useState<T>(
-    initialValue: T,
+    initialValue: T | (() => T),
   ): [T, (value: T | ((currentValue: T) => T)) => void];
+  export function useReducer<S, A>(
+    reducer: (state: S, action: A) => S,
+    initialState: S,
+  ): [S, (action: A) => void];
   export function useEffect(
     effect: () => undefined | (() => void),
     dependencies?: readonly unknown[],

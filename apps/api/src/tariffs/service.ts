@@ -26,7 +26,11 @@ export class TariffStateError extends Error {}
 
 type Dependencies = { store: FileStore; permissions: PermissionChecker };
 
-export type SavedTariff = { tariff: Tariff; validation: TariffValidation };
+export type SavedTariff = {
+  tariff: Tariff;
+  validation: TariffValidation;
+  etag: string;
+};
 
 function pathOf(organisationId: string, tariffId: string, version: number) {
   return `tariffs/${organisationId}/${tariffId}/v${version}.json`;
@@ -115,8 +119,12 @@ export class TariffService {
         "This version is already published. Start a new version.",
       );
     }
-    await this.write(context, parsed, ifMatch ?? existing?.etag);
-    return { tariff: parsed, validation: validateTariff(parsed) };
+    const stored = await this.write(context, parsed, ifMatch ?? existing?.etag);
+    return {
+      tariff: parsed,
+      validation: validateTariff(parsed),
+      etag: stored.etag,
+    };
   }
 
   async submit(context: AccessContext, tariff: Tariff): Promise<Tariff> {
@@ -202,6 +210,6 @@ export class TariffService {
       tariff.tariffId,
       tariff.version,
     );
-    await this.deps.store.putJson(context, path, tariff, ifMatch);
+    return this.deps.store.putJson(context, path, tariff, ifMatch);
   }
 }

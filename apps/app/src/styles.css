@@ -842,3 +842,49 @@ h1 {
     grid-template-columns: 1fr;
   }
 }
+
+.zone-row-editable {
+  grid-template-columns: 1fr 1fr 1fr 5rem;
+}
+.terms-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  padding: 1.2rem;
+}
+.terms-field {
+  display: grid;
+  gap: 0.35rem;
+}
+.terms-field input {
+  border: 1px solid #c9c0b3;
+  border-radius: 4px;
+  font: inherit;
+  min-height: 44px;
+  padding: 0 0.6rem;
+}
+.cell-invalid {
+  border-color: #a12a2a;
+  outline: 2px solid rgb(161 42 42 / 18%);
+}
+.band-limit {
+  text-align: left;
+}
+.unsaved-message {
+  color: #7a5a00;
+  font-weight: 600;
+}
+.calc-result {
+  display: grid;
+  gap: 0.3rem;
+  max-width: 28rem;
+}
+.calc-result p {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+}
+.calc-total {
+  border-top: 1px solid #d4d0c9;
+  padding-top: 0.4rem;
+}
