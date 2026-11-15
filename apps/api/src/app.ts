@@ -1,232 +1,162 @@
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
-import Fastify, {
-  type FastifyInstance,
-  type FastifyReply,
-  type FastifyRequest,
-} from "fastify";
-import { z } from "zod";
-import type { PrincipalResolver } from "./auth.ts";
+import Fastify, { type FastifyInstance } from "fastify";
+import { ZodError } from "zod";
+import { registerAdminRoutes } from "./auth/adminRoutes.ts";
+import {
+  requireAuth,
+  requireCsrfOnWrites,
+  requireRole,
+} from "./auth/authorization.ts";
+import { accessContextOf, principalOf } from "./auth/principal.ts";
+import { registerAuthRoutes } from "./auth/routes.ts";
+import { AuthError, AuthService } from "./auth/service.ts";
+import { SessionStore } from "./auth/sessions.ts";
+import { type ApiEnvironment, loadApiEnvironment } from "./config/env.ts";
+import { Accounts } from "./db/accounts.ts";
+import { CredentialStore } from "./db/credentials.ts";
+import type { Database } from "./db/pool.ts";
+import { registerFreightRoutes } from "./freight/routes.ts";
+import { createFreightServices } from "./freight/services.ts";
+import { serializeApiError } from "./http/errors.ts";
+import { registerStaticApp } from "./http/staticApp.ts";
 import { StorageError } from "./storage/errors.ts";
+import { registerFileRoutes } from "./storage/routes.ts";
 import type { StorageAdapter } from "./storage/types.ts";
-import { destinationFromPath, uploadRequestSchema } from "./storage/types.ts";
 
-export type ApiAppOptions = {
-  storage: StorageAdapter;
-  resolvePrincipal: PrincipalResolver;
+export type BuildApiOptions = {
+  environment?: ApiEnvironment;
+  // Accounts, sessions and roles live here. Freight data never does.
+  database: Database;
+  storage?: StorageAdapter;
 };
 
-const fileIdSchema = z
-  .string()
-  .min(1)
-  .max(200)
-  .regex(/^[A-Za-z0-9._~-]+$/);
-const uploadIdSchema = z.string().uuid();
-const MAX_UPLOAD_CHUNK_BYTES = 60 * 1024 * 1024;
-const listQuerySchema = z.object({
-  folder: z.string().default("inbound/shipments"),
-  cursor: z.string().optional(),
-  pageSize: z.coerce.number().int().min(1).max(100).default(25),
-});
+const REQUESTS_PER_MINUTE = 200;
+const HSTS_SECONDS = 31_536_000;
+const CONTENT_SECURITY_POLICY =
+  "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
+  "frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+const APP_FILES = fileURLToPath(new URL("../../app/dist", import.meta.url));
 
-export async function createApiApp(
-  options: ApiAppOptions,
-): Promise<FastifyInstance> {
-  const app = Fastify({
-    logger: false,
-    bodyLimit: MAX_UPLOAD_CHUNK_BYTES,
+export function buildApi(options: BuildApiOptions): FastifyInstance {
+  const environment = options.environment ?? loadApiEnvironment();
+  const accounts = new Accounts(options.database);
+  const credentials = new CredentialStore(options.database);
+  const authService = new AuthService({
+    environment,
+    credentials,
+    sessions: new SessionStore(options.database),
   });
-  await app.register(cookie);
-  await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
-  app.addContentTypeParser(
+  const server = Fastify({
+    // URLs can contain one-time invitation or reset tokens, so never log request URLs.
+    logger:
+      environment.NODE_ENV !== "test"
+        ? { redact: ["req.url", "req.headers.cookie"] }
+        : false,
+    bodyLimit: environment.MAX_UPLOAD_BYTES,
+    trustProxy: environment.TRUST_PROXY,
+  });
+
+  server.register(cookie);
+  server.register(rateLimit, {
+    global: true,
+    max: REQUESTS_PER_MINUTE,
+    timeWindow: "1 minute",
+  });
+  server.addContentTypeParser(
     "application/octet-stream",
     { parseAs: "buffer" },
     (_request, body, done) => done(null, body),
   );
-  app.addHook("onSend", async (_request, reply) => {
-    reply.header("Cache-Control", "no-store");
+
+  server.addHook("onSend", async (_request, reply, payload) => {
     reply.header("X-Content-Type-Options", "nosniff");
+    reply.header("X-Frame-Options", "DENY");
     reply.header("Referrer-Policy", "no-referrer");
-  });
-  app.addHook("onRequest", async (request, reply) => {
-    const origin = request.headers.origin;
-    if (origin && origin === process.env.APP_ORIGIN) {
-      reply.header("Access-Control-Allow-Origin", origin);
-      reply.header("Access-Control-Allow-Credentials", "true");
+    if (!reply.hasHeader("Cache-Control")) {
+      reply.header("Cache-Control", "no-store");
+    }
+    reply.header("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+    if (environment.COOKIE_SECURE) {
       reply.header(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Content-Range",
-      );
-      reply.header(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, OPTIONS",
+        "Strict-Transport-Security",
+        `max-age=${HSTS_SECONDS}; includeSubDomains`,
       );
     }
-    if (request.method === "OPTIONS") return reply.code(204).send();
+    return payload;
   });
 
-  app.get("/api/files", async (request, reply) => {
-    const principal = await requirePrincipal(
-      options.resolvePrincipal,
-      request,
-      reply,
-    );
-    if (!principal) return;
-    const parsed = listQuerySchema.safeParse(request.query);
-    if (!parsed.success) return sendInvalid(reply, parsed.error.message);
-    const destination = destinationFromPath(parsed.data.folder);
-    if (!destination)
-      return sendInvalid(
-        reply,
-        "The requested storage folder is not supported.",
+  server.get("/health", async () => ({
+    status: "ok",
+    service: "freight-desk-api",
+  }));
+
+  // Registered inside the server's plugin queue so the rate limits apply to these routes.
+  server.register(async (scope) =>
+    registerAuthRoutes(scope, { environment, authService }),
+  );
+
+  server.register(async (scope) => {
+    scope.addHook("preHandler", requireAuth(authService));
+    scope.addHook("preHandler", requireCsrfOnWrites(environment));
+    if (options.storage) {
+      const storage = options.storage;
+      registerFileRoutes(scope, {
+        storage,
+        principalOf: (request) =>
+          request.auth ? principalOf(accessContextOf(request.auth.user)) : null,
+      });
+      registerFreightRoutes(
+        scope,
+        createFreightServices(storage, () => accounts.activeCarriers()),
       );
-    return options.storage.listFiles(principal, {
-      destination,
-      cursor: parsed.data.cursor,
-      pageSize: parsed.data.pageSize,
+    }
+    scope.register(async (admin) => {
+      admin.addHook("preHandler", requireRole("master"));
+      registerAdminRoutes(admin, {
+        accounts,
+        credentials,
+        appOrigin: environment.APP_ORIGIN,
+      });
     });
   });
 
-  app.get("/api/files/:id", async (request, reply) => {
-    const principal = await requirePrincipal(
-      options.resolvePrincipal,
-      request,
-      reply,
-    );
-    if (!principal) return;
-    const fileId = parseParam(request, "id", fileIdSchema);
-    if (!fileId) return sendInvalid(reply, "The file identifier is invalid.");
-    return options.storage.getFileMetadata(principal, fileId);
-  });
+  if (environment.NODE_ENV === "production" && existsSync(APP_FILES)) {
+    registerStaticApp(server, APP_FILES);
+  }
 
-  app.post("/api/uploads/initiate", async (request, reply) => {
-    const principal = await requirePrincipal(
-      options.resolvePrincipal,
-      request,
-      reply,
-    );
-    if (!principal) return;
-    const parsed = uploadRequestSchema.safeParse(request.body);
-    if (!parsed.success) return sendInvalid(reply, parsed.error.message);
-    const result = await options.storage.initiateUpload(principal, parsed.data);
-    return reply.code(201).send(result);
-  });
+  server.setNotFoundHandler((_request, reply) =>
+    reply.code(404).send({
+      error: "not_found",
+      message: "The requested resource was not found.",
+    }),
+  );
 
-  app.put("/api/uploads/:uploadId", async (request, reply) => {
-    const principal = await requirePrincipal(
-      options.resolvePrincipal,
-      request,
-      reply,
-    );
-    if (!principal) return;
-    const uploadId = parseParam(request, "uploadId", uploadIdSchema);
-    if (!uploadId)
-      return sendInvalid(reply, "The upload identifier is invalid.");
-    const contentRange = request.headers["content-range"];
-    if (typeof contentRange !== "string") {
-      return sendInvalid(reply, "Content-Range is required for upload chunks.");
+  server.setErrorHandler((error, _request, reply) => {
+    if (error instanceof AuthError) {
+      return reply
+        .code(error.statusCode)
+        .send({ error: error.code, message: error.message });
     }
-    const body = request.body;
-    if (!(body instanceof Buffer) && !(body instanceof Uint8Array)) {
-      return sendInvalid(reply, "Upload chunks must be sent as binary data.");
-    }
-    const result = await options.storage.uploadChunk(
-      principal,
-      uploadId,
-      body,
-      contentRange,
-    );
-    return reply.code(result.completed ? 201 : 202).send(result);
-  });
-
-  app.get("/api/files/:id/download", async (request, reply) => {
-    const principal = await requirePrincipal(
-      options.resolvePrincipal,
-      request,
-      reply,
-    );
-    if (!principal) return;
-    const fileId = parseParam(request, "id", fileIdSchema);
-    if (!fileId) return sendInvalid(reply, "The file identifier is invalid.");
-    const result = await options.storage.downloadFile(principal, fileId);
-    reply.type(result.metadata.contentType);
-    reply.header(
-      "Content-Disposition",
-      `attachment; filename*=UTF-8''${encodeURIComponent(safeHeaderFileName(result.metadata.name))}`,
-    );
-    return reply.send(result.body);
-  });
-
-  app.delete("/api/files/:id", async (request, reply) => {
-    const principal = await requirePrincipal(
-      options.resolvePrincipal,
-      request,
-      reply,
-    );
-    if (!principal) return;
-    const fileId = parseParam(request, "id", fileIdSchema);
-    if (!fileId) return sendInvalid(reply, "The file identifier is invalid.");
-    await options.storage.deleteFile(principal, fileId);
-    return reply.code(204).send();
-  });
-
-  app.setErrorHandler((error, _request, reply) => {
     if (error instanceof StorageError) {
       if (error.retryAfterSeconds !== null) {
         reply.header("Retry-After", String(Math.ceil(error.retryAfterSeconds)));
       }
-      return reply.code(error.statusCode).send({
-        error: error.code,
-        message: error.message,
+      return reply
+        .code(error.statusCode)
+        .send({ error: error.code, message: error.message });
+    }
+    if (error instanceof ZodError) {
+      return reply.code(400).send({
+        error: "bad_request",
+        message: "Some of the information is not valid.",
       });
     }
-    requestLogSafe(error);
-    return reply.code(500).send({
-      error: "internal_error",
-      message: "The request could not be completed.",
-    });
+    const response = serializeApiError(error);
+    return reply.code(response.statusCode).send(response.body);
   });
 
-  return app;
-}
-
-async function requirePrincipal(
-  resolvePrincipal: PrincipalResolver,
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<Awaited<ReturnType<PrincipalResolver>> | null> {
-  const principal = await resolvePrincipal(request);
-  if (principal) return principal;
-  reply.code(401).send({
-    error: "unauthenticated",
-    message: "Sign in is required to access cloud files.",
-  });
-  return null;
-}
-
-function parseParam<T extends z.ZodType<string>>(
-  request: FastifyRequest,
-  key: string,
-  schema: T,
-): string | null {
-  const params = request.params as Record<string, unknown>;
-  const parsed = schema.safeParse(params[key]);
-  return parsed.success ? parsed.data : null;
-}
-
-function sendInvalid(reply: FastifyReply, message: string) {
-  return reply.code(400).send({ error: "invalid_request", message });
-}
-
-function requestLogSafe(error: unknown): void {
-  if (error instanceof Error) console.error(error.message);
-}
-
-function safeHeaderFileName(name: string): string {
-  return [...name]
-    .map((character) => {
-      const code = character.charCodeAt(0);
-      return code < 32 || code === 127 ? "_" : character;
-    })
-    .join("");
+  return server;
 }

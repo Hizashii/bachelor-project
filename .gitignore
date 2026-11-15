@@ -5,5 +5,10 @@ dist/
 *.tsbuildinfo
 coverage/
 .env.local
+data/storage/
+data/demo/
+apps/api/data/storage/
+apps/api/data/demo/
+data/e2e/
 playwright-report/
 test-results/

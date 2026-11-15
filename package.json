@@ -1,6 +1,9 @@
 {
   "name": "freight-desk",
   "private": true,
+  "engines": {
+    "node": ">=24"
+  },
   "workspaces": [
     "apps/site",
     "apps/app",
@@ -14,11 +17,17 @@
     "secrets": "node scripts/run-gitleaks.mjs",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "db:migrate": "npm run db:migrate -w @freight-desk/api",
+    "demo:seed": "npm run demo:seed -w @freight-desk/api",
+    "check:setup": "npm run check:setup -w @freight-desk/api"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",
     "@playwright/test": "1.64.1",
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
     "lefthook": "2.2.2",
     "typescript": "7.0.2",
     "vitest": "5.0.5"

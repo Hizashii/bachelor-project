@@ -25,8 +25,10 @@ feature is released. The existing decisions above remain in force.
   is display-only and uses the tender's IANA time zone.
 - Prices use integer minor currency units and always carry a currency code.
 - The first data model supports kg, pallets, CBM, LDM and packages.
-- The existing SharePoint Excel and JSON file store remains the first source of
-  truth. A database is not introduced by this specification.
+- SharePoint Excel and JSON files are the intended first source of truth. The
+  current application has not yet implemented the SharePoint adapter. A
+  PostgreSQL foundation migration may hold only account, organisation and
+  authorisation metadata; it must not become a freight-data store.
 - Canonical validation schemas live in `packages/shared/src/schemas`; the
   public TypeScript model exports live in `packages/shared/src/types`.
 

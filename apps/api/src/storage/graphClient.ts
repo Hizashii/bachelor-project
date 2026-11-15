@@ -212,6 +212,24 @@ export class MicrosoftGraphClient implements GraphGateway {
     );
   }
 
+  // Read-only check used by npm run check:setup: can the app reach the approved folder, and
+  // does the library have the columns the adapter needs?
+  async probe(
+    driveId: string,
+    rootItemId: string,
+    requiredColumns: readonly string[],
+  ): Promise<{ rootFolder: string; missingColumns: string[] }> {
+    const root = await this.getDriveItem(driveId, rootItemId);
+    const columns = await this.requestJson<{ value: { name: string }[] }>(
+      `/drives/${encodeURIComponent(driveId)}/list/columns?$select=name`,
+    );
+    const found = new Set(columns.value.map((column) => column.name));
+    return {
+      rootFolder: root.name,
+      missingColumns: requiredColumns.filter((name) => !found.has(name)),
+    };
+  }
+
   private async requestJson<T>(
     pathOrUrl: string,
     options: { method?: string; body?: string } = {},

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { csrfHeader } from "../../api/client";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 
@@ -83,6 +84,7 @@ export function FileManagement({ locale }: FileManagementProps) {
             method: "PUT",
             credentials: "include",
             headers: {
+              ...(await csrfHeader()),
               "Content-Range": `bytes ${offset}-${end - 1}/${file.size}`,
               "Content-Type": "application/octet-stream",
             },
@@ -143,7 +145,11 @@ export function FileManagement({ locale }: FileManagementProps) {
     try {
       const response = await fetch(
         `${API_ORIGIN}/api/files/${encodeURIComponent(fileToRemove.id)}`,
-        { method: "DELETE", credentials: "include" },
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: await csrfHeader(),
+        },
       );
       const payload = await readPayload(response);
       if (!response.ok) {
@@ -329,9 +335,11 @@ async function requestJson(
   path: string,
   init: RequestInit,
 ): Promise<Record<string, unknown>> {
+  const changes = (init.method ?? "GET") !== "GET";
   const response = await fetch(`${API_ORIGIN}${path}`, {
     ...init,
     credentials: "include",
+    headers: { ...(changes ? await csrfHeader() : {}), ...init.headers },
   });
   const payload = await readPayload(response);
   if (!response.ok)

@@ -24,6 +24,6 @@ Graph requests retry only throttling and transient 5xx responses with bounded ex
 
 ## Authentication boundary
 
-`createApiApp` accepts a `PrincipalResolver`. The default server resolver reads a principal populated by the application authentication middleware; with no authentication middleware configured it rejects all file actions with `401`. This fail-closed default is intentional. The resolver must be connected to the product's Entra/session middleware before production use and must supply the authenticated user, organisation, allowed destination keys and effective permissions. Destination keys are checked in addition to SharePoint metadata, so a user cannot select a different carrier or tender folder by changing request JSON.
+File routes run behind the platform's e-mail and password login. The signed-in user's role and company become the principal (`auth/principal.ts`): their organisation, allowed destination keys and permissions. Without a session every file action answers `401`. Destination keys are checked in addition to SharePoint metadata, so a user cannot select a different carrier or tender folder by changing request JSON.
 
 There is no live tenant configuration in this repository, so Graph permission grants, SharePoint column names and real upload/download behaviour still require verification in a dedicated client test tenant.
