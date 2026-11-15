@@ -125,6 +125,19 @@ test("carrier portal: import rate sheet, check zones, price a sample, save draft
   await expect(page.getByText("Ændringer gemt")).toBeVisible();
 });
 
+test("transporters keeps the staff navigation available", async ({ page }) => {
+  await page.goto("/carriers");
+
+  await expect(page.getByRole("link", { name: "Upload" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sammenlign" })).toBeVisible();
+  await page.getByRole("link", { name: "Filer" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Forsendelsesfiler i virksomhedens lagring",
+    }),
+  ).toBeVisible();
+});
+
 test("compare: shows the calculated price and marks reliability as not available", async ({
   page,
 }) => {

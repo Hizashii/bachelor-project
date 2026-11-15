@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink, useLocation } from "react-router";
+import { NavLink } from "react-router";
 import type { SafeUserProfile } from "../auth/auth";
 import type { Locale } from "../i18n";
 import { getCopy } from "../i18n";
@@ -20,20 +20,15 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const copy = getCopy(locale);
-  const isCarrierPortal = useLocation().pathname === "/carriers";
   const homePath = user.role === "carrier" ? "/carriers" : "/compare";
 
   return (
     <div className="app-shell">
-      <header className={`topbar ${isCarrierPortal ? "portal-topbar" : ""}`}>
+      <header className="topbar">
         <NavLink className="brand" to={homePath} aria-label="Freight Desk home">
           Slinkert &amp; Aarøe
         </NavLink>
-        {isCarrierPortal ? (
-          <span className="portal-title">{copy.portalTitle}</span>
-        ) : (
-          <PrimaryNav copy={copy} role={user.role} />
-        )}
+        <PrimaryNav copy={copy} role={user.role} />
         <fieldset className="language-switch">
           <legend className="sr-only">{copy.language}</legend>
           <button
