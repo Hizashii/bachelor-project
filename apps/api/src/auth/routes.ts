@@ -1,218 +1,108 @@
-// Sign-in routes: Microsoft Entra (or local mock identities), session cookie, CSRF token, logout.
-// The directory of trusted users and the session store are injected by buildApi.
+// Sign-in routes: log in with e-mail and password, log out, accept an invitation, reset or
+// change a password. Sessions are an opaque cookie; changes also need the CSRF token.
 
-import { randomBytes } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { z } from "zod";
 import type { ApiEnvironment } from "../config/env.ts";
-import {
-  requireAuth,
-  requireCompanyAccess,
-  requireCsrf,
-  requireRole,
-} from "./authorization.ts";
-import {
-  mockExternalIdentity,
-  mockIdentityKeys,
-  mockIdentityOptions,
-} from "./directory.ts";
-import { createPkcePair, type IdentityProvider } from "./identity.ts";
+import { requireAuth, requireCsrf } from "./authorization.ts";
+import { MAX_PASSWORD_LENGTH } from "./password.ts";
 import { AuthError, type AuthService } from "./service.ts";
-import { AUTH_STATE_COOKIE, type AuthTransactionStore } from "./sessions.ts";
 
 export type AuthRoutesOptions = {
   environment: ApiEnvironment;
   authService: AuthService;
-  transactions: AuthTransactionStore;
-  identityProvider: IdentityProvider | undefined;
 };
+
+const password = z.string().min(1).max(MAX_PASSWORD_LENGTH);
+const loginBody = z
+  .object({ email: z.string().trim().email().max(320), password })
+  .strict();
+const linkBody = z
+  .object({ token: z.string().min(20).max(200), password })
+  .strict();
+const changeBody = z
+  .object({ currentPassword: password, newPassword: password })
+  .strict();
 
 function cookieOptions(environment: ApiEnvironment, maxAge: number) {
   return {
     httpOnly: true,
     secure: environment.COOKIE_SECURE,
-    sameSite: "lax" as const,
+    sameSite: "strict" as const,
     path: "/",
     maxAge,
   };
 }
 
-function redirectToLogin(environment: ApiEnvironment, error?: string): string {
-  const url = new URL("/login", environment.APP_ORIGIN);
-  if (error) url.searchParams.set("error", error);
-  return url.toString();
+// Requests from a browser carry an Origin header; one from another site is refused.
+function assertSameOrigin(
+  request: FastifyRequest,
+  environment: ApiEnvironment,
+) {
+  const origin = request.headers.origin;
+  if (origin !== new URL(environment.APP_ORIGIN).origin) {
+    throw new AuthError(
+      "csrf_failed",
+      "The request failed CSRF validation.",
+      403,
+    );
+  }
 }
 
 export function registerAuthRoutes(
   server: FastifyInstance,
   options: AuthRoutesOptions,
 ): void {
-  const { environment, authService, transactions, identityProvider } = options;
-  server.get("/api/auth/config", async () => ({
-    mode: environment.AUTH_MODE,
-    mockIdentities: environment.AUTH_MODE === "mock" ? mockIdentityOptions : [],
-  }));
-
-  server.get(
-    "/auth/login",
-    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
-    async (_request, reply) => {
-      if (environment.AUTH_MODE === "mock")
-        return reply.redirect(redirectToLogin(environment));
-      if (!identityProvider) {
-        throw new AuthError(
-          "auth_unavailable",
-          "The identity provider is not configured.",
-          503,
-        );
-      }
-
-      const state = randomBytes(32).toString("base64url");
-      const nonce = randomBytes(32).toString("base64url");
-      const { verifier, challenge } = createPkcePair();
-      await transactions.create({ state, nonce, codeVerifier: verifier }, 600);
-      const authorizationUrl = await identityProvider.createAuthorizationUrl({
-        state,
-        nonce,
-        codeChallenge: challenge,
-      });
-
-      return reply
-        .setCookie(AUTH_STATE_COOKIE, state, cookieOptions(environment, 600))
-        .redirect(authorizationUrl);
-    },
-  );
-
-  server.get(
-    "/auth/mock/login",
-    { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
-    async (request, reply) => {
-      if (environment.AUTH_MODE !== "mock") {
-        throw new AuthError(
-          "route_not_available",
-          "Mock authentication is disabled.",
-          404,
-        );
-      }
-
-      const identity = (request.query as { identity?: string }).identity;
-      if (
-        !identity ||
-        !mockIdentityKeys.includes(
-          identity as (typeof mockIdentityKeys)[number],
-        )
-      ) {
-        throw new AuthError(
-          "invalid_mock_identity",
-          "The requested mock identity is not available.",
-          400,
-        );
-      }
-
-      const session = await authService.createSession(
-        mockExternalIdentity(identity as (typeof mockIdentityKeys)[number]),
-      );
-      return reply
-        .setCookie(
-          authService.sessionCookieName,
-          session.cookieValue,
-          cookieOptions(environment, environment.SESSION_TTL_SECONDS),
-        )
-        .redirect(environment.APP_ORIGIN);
-    },
-  );
-
-  server.get("/auth/callback", async (request, reply) => {
-    if (!identityProvider || environment.AUTH_MODE !== "entra") {
-      throw new AuthError(
-        "route_not_available",
-        "Entra authentication is disabled.",
-        404,
-      );
-    }
-
-    const query = request.query as {
-      code?: string;
-      state?: string;
-      error?: string;
-    };
-    if (query.error)
-      return reply.redirect(redirectToLogin(environment, "entra_denied"));
-    if (!query.code || !query.state) {
-      throw new AuthError(
-        "invalid_callback",
-        "The sign-in callback is incomplete.",
-        400,
-      );
-    }
-
-    const stateCookie = request.cookies[AUTH_STATE_COOKIE];
-    if (!stateCookie || stateCookie !== query.state) {
-      throw new AuthError(
-        "invalid_callback",
-        "The sign-in state is invalid.",
-        400,
-      );
-    }
-
-    const transaction = await transactions.consume(query.state);
-    if (!transaction) {
-      throw new AuthError(
-        "invalid_callback",
-        "The sign-in state has expired.",
-        400,
-      );
-    }
-
-    try {
-      const identity = await identityProvider.exchangeCode(
-        query.code,
-        transaction,
-      );
-      const session = await authService.createSession(identity);
-      return reply
-        .clearCookie(AUTH_STATE_COOKIE, { path: "/" })
-        .setCookie(
-          authService.sessionCookieName,
-          session.cookieValue,
-          cookieOptions(environment, environment.SESSION_TTL_SECONDS),
-        )
-        .redirect(environment.APP_ORIGIN);
-    } catch (error) {
-      const code =
-        error instanceof AuthError && error.code === "mfa_required"
-          ? "mfa_required"
-          : "sign_in_failed";
-      return reply.redirect(redirectToLogin(environment, code));
-    }
+  const { environment, authService } = options;
+  const limit = (max: number) => ({
+    config: { rateLimit: { max, timeWindow: "1 minute" } },
   });
 
-  server.get(
-    "/api/me",
-    { preHandler: requireAuth(authService) },
-    async (request) => {
-      if (!request.auth) {
-        throw new AuthError(
-          "unauthenticated",
-          "Authentication is required.",
-          401,
-        );
-      }
-      return { user: request.auth.user };
+  server.post(
+    "/auth/login",
+    limit(environment.LOGIN_ATTEMPTS_PER_MINUTE),
+    async (request, reply) => {
+      assertSameOrigin(request, environment);
+      const body = loginBody.parse(request.body);
+      const session = await authService.login(body.email, body.password);
+      const user = { ...session.user, storageMode: environment.STORAGE_MODE };
+      return reply
+        .setCookie(
+          authService.sessionCookieName,
+          session.cookieValue,
+          cookieOptions(environment, environment.SESSION_TTL_SECONDS),
+        )
+        .send({ user });
     },
   );
 
-  server.get(
-    "/api/csrf",
-    { preHandler: requireAuth(authService) },
+  server.post(
+    "/auth/accept-invitation",
+    limit(environment.LOGIN_ATTEMPTS_PER_MINUTE),
     async (request) => {
-      if (!request.auth) {
-        throw new AuthError(
-          "unauthenticated",
-          "Authentication is required.",
-          401,
-        );
-      }
-      return { token: request.auth.session.csrfToken };
+      assertSameOrigin(request, environment);
+      const body = linkBody.parse(request.body);
+      await authService.setPasswordFromLink(
+        body.token,
+        "invitation",
+        body.password,
+      );
+      return { ok: true };
+    },
+  );
+
+  server.post(
+    "/auth/reset-password",
+    limit(environment.LOGIN_ATTEMPTS_PER_MINUTE),
+    async (request) => {
+      assertSameOrigin(request, environment);
+      const body = linkBody.parse(request.body);
+      await authService.setPasswordFromLink(
+        body.token,
+        "password_reset",
+        body.password,
+      );
+      return { ok: true };
     },
   );
 
@@ -220,32 +110,49 @@ export function registerAuthRoutes(
     "/auth/logout",
     { preHandler: [requireAuth(authService), requireCsrf(environment)] },
     async (request, reply) => {
-      const cookieValue = request.cookies[authService.sessionCookieName];
-      await authService.revokeSession(cookieValue);
-      const redirectTo =
-        environment.AUTH_MODE === "entra"
-          ? (identityProvider?.createLogoutUrl() ??
-            redirectToLogin(environment))
-          : redirectToLogin(environment);
+      await authService.revokeSession(
+        request.cookies[authService.sessionCookieName],
+      );
       return reply
         .clearCookie(authService.sessionCookieName, { path: "/" })
-        .send({ redirectTo });
+        .send({
+          redirectTo: new URL("/login", environment.APP_ORIGIN).toString(),
+        });
     },
   );
 
-  // This route is intentionally data-free. It exercises the resource guard until domain APIs are added.
   server.get(
-    "/api/companies/:companyId",
-    { preHandler: [requireAuth(authService), requireCompanyAccess()] },
+    "/api/me",
+    { preHandler: requireAuth(authService) },
     async (request) => ({
-      companyId: (request.params as { companyId: string }).companyId,
-      authorized: true,
+      user: request.auth
+        ? { ...request.auth.user, storageMode: environment.STORAGE_MODE }
+        : undefined,
     }),
   );
 
   server.get(
-    "/api/master/authorization-check",
-    { preHandler: [requireAuth(authService), requireRole("master")] },
-    async () => ({ authorized: true }),
+    "/api/csrf",
+    { preHandler: requireAuth(authService) },
+    async (request) => ({
+      token: request.auth?.session.csrfToken,
+    }),
+  );
+
+  // Changing the password ends every session, including this one.
+  server.post(
+    "/api/me/password",
+    { preHandler: [requireAuth(authService), requireCsrf(environment)] },
+    async (request, reply) => {
+      const body = changeBody.parse(request.body);
+      await authService.changePassword(
+        request.auth?.user.id ?? "",
+        body.currentPassword,
+        body.newPassword,
+      );
+      return reply
+        .clearCookie(authService.sessionCookieName, { path: "/" })
+        .send({ ok: true });
+    },
   );
 }

@@ -49,15 +49,14 @@ a freight file or normalized value is read.
 
 ### Authentication boundary
 
-Authentication will be implemented behind an API module. Microsoft Entra ID is
-the identity provider and Conditional Access is responsible for MFA. The API
-will establish a secure server-side session; UI state is not an authority for
-roles, company IDs or access. The current branch only establishes the hosting
-and configuration boundaries; it does not add a second authentication flow.
+Users log in with e-mail and password handled by the API (see
+`docs/AUTHENTICATION.md`). The API establishes a secure server-side session;
+UI state is not an authority for roles, company IDs or access. Microsoft 365 is
+used only as the file store, with the server's own application credentials.
 
 ### User and organisation boundary
 
-The PostgreSQL metadata schema contains Entra subject records, organisations
+The PostgreSQL metadata schema contains user accounts (with password hashes), organisations
 and memberships. A carrier membership must reference a carrier organisation.
 Consultant and master memberships do not receive a carrier company ID. Changes
 to membership status and role are administrative metadata changes and must be

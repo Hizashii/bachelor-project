@@ -3,7 +3,8 @@ export type ApiErrorCode =
   | "configuration_error"
   | "internal_error"
   | "not_found"
-  | "payload_too_large";
+  | "payload_too_large"
+  | "too_many_requests";
 
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
@@ -60,6 +61,15 @@ export function serializeApiError(error: unknown): SerializedApiError {
       body: {
         error: "not_found",
         message: "The requested resource was not found.",
+      },
+    };
+  }
+  if (statusCode === 429) {
+    return {
+      statusCode,
+      body: {
+        error: "too_many_requests",
+        message: "Too many attempts. Please wait a minute and try again.",
       },
     };
   }

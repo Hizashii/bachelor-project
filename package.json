@@ -17,7 +17,10 @@
     "secrets": "node scripts/run-gitleaks.mjs",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e.mjs",
-    "build": "npm run build --workspaces --if-present"
+    "build": "npm run build --workspaces --if-present",
+    "db:migrate": "npm run db:migrate -w @freight-desk/api",
+    "demo:seed": "npm run demo:seed -w @freight-desk/api",
+    "check:setup": "npm run check:setup -w @freight-desk/api"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.3",

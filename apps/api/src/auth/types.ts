@@ -4,34 +4,13 @@ export const userRoles = ["carrier", "consultant", "master"] as const;
 export const userRoleSchema = z.enum(userRoles);
 export type UserRole = (typeof userRoles)[number];
 
-export const trustedDirectoryUserSchema = z.object({
-  id: z.string().min(1),
-  subject: z.string().min(1),
-  tenantId: z.string().min(1),
-  email: z.string().email(),
-  displayName: z.string().min(1),
-  role: userRoleSchema,
-  companyId: z.string().min(1).nullable(),
-  active: z.boolean().default(true),
-});
-
-export type TrustedDirectoryUser = z.infer<typeof trustedDirectoryUserSchema>;
-
-export type ExternalIdentity = {
-  subject: string;
-  tenantId: string;
-  email: string;
-  displayName: string;
-  mfaVerified: boolean;
-};
-
 export type AuthenticatedUser = {
   id: string;
   email: string;
   displayName: string;
   role: UserRole;
+  // The carrier company for carriers; null for consultancy staff.
   companyId: string | null;
-  mfaVerified: boolean;
 };
 
 export type SessionRecord = {

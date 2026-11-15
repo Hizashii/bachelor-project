@@ -79,57 +79,6 @@
   margin: 1.5rem 0 0;
 }
 
-.mock-login {
-  border-top: 1px solid #e2dfd9;
-  margin-top: 1.8rem;
-  padding-top: 1.5rem;
-}
-
-.mock-login-label {
-  color: #866324;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-  margin-bottom: 0.35rem;
-  text-transform: uppercase;
-}
-
-.mock-login-note {
-  color: #6d7d8c;
-  font-size: 0.88rem;
-  line-height: 1.5;
-  margin-bottom: 1rem;
-}
-
-.mock-identity {
-  align-items: center;
-  border: 1px solid #d4d0c9;
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.65rem;
-  padding: 0.85rem 1rem;
-  transition:
-    border-color 150ms ease,
-    background 150ms ease;
-}
-
-.mock-identity:hover,
-.mock-identity:focus-visible {
-  background: #f7f1e4;
-  border-color: #b58a3b;
-}
-
-.mock-identity span:first-child {
-  display: grid;
-  gap: 0.18rem;
-}
-
-.mock-identity small {
-  color: #6d7d8c;
-  font-size: 0.78rem;
-}
-
 .session-label {
   align-items: center;
   display: flex;
@@ -171,6 +120,15 @@ a {
 
 .app-shell {
   min-height: 100vh;
+}
+
+.storage-mode-banner {
+  background: #fff7dc;
+  border-bottom: 1px solid #e3b65d;
+  color: #5b4315;
+  font-size: 0.82rem;
+  padding: 0.55rem 1.5rem;
+  text-align: center;
 }
 .topbar {
   align-items: center;
@@ -1186,4 +1144,21 @@ h1 {
 .calc-total {
   border-top: 1px solid #d4d0c9;
   padding-top: 0.4rem;
+}
+
+.auth-field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1.1rem;
+}
+.auth-field input {
+  border: 1px solid #c9c0b3;
+  border-radius: 4px;
+  font: inherit;
+  min-height: 44px;
+  padding: 0 0.75rem;
+}
+.auth-field input:focus {
+  border-color: #a17a31;
+  outline: 3px solid rgb(161 122 49 / 18%);
 }

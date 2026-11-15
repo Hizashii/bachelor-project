@@ -184,3 +184,45 @@ export function applyImport(
     sourceFile: fileName,
   };
 }
+
+export function stateFromTariff(tariff: Tariff): EditorState {
+  const zoneRows = tariff.zones.flatMap((zone) =>
+    zone.ranges.map((range, index) => ({
+      id: index === 0 ? zone.id : crypto.randomUUID(),
+      name: zone.name,
+      from: range.from,
+      to: range.to,
+    })),
+  );
+  const rates: Record<string, string> = {};
+  for (const rate of tariff.rates) {
+    if (rate.amountMinor !== null) {
+      rates[rateKey(rate.zoneId, rate.bracketIndex)] = minorToText(
+        rate.amountMinor,
+      );
+    }
+  }
+  const fuel = tariff.surcharges.find(
+    (item) => item.kind === "fuel" && item.calculation.kind === "percentage",
+  );
+  return {
+    method: tariff.method,
+    zoneRows,
+    limits: tariff.brackets.map((bracket) =>
+      bracket.to === null ? "" : String(bracket.to),
+    ),
+    rates,
+    fuelPercent:
+      fuel?.calculation.kind === "percentage"
+        ? String(
+            fuel.calculation.basisPoints / BASIS_POINTS_PER_PERCENT,
+          ).replace(",", ".")
+        : "",
+    minimumCharge:
+      tariff.minimumChargeMinor === null
+        ? ""
+        : minorToText(tariff.minimumChargeMinor),
+    effectiveFrom: tariff.effectiveFrom,
+    sourceFile: tariff.sourceFile,
+  };
+}

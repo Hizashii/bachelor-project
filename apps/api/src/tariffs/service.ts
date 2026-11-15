@@ -125,6 +125,31 @@ export class TariffService {
       : null;
   }
 
+  async latestDraft(
+    context: AccessContext,
+  ): Promise<{ tariff: Tariff; etag: string } | null> {
+    if (context.role !== "carrier") return null;
+    const tariffs = await this.listCarrierTariffs(context, [
+      context.organisationId,
+    ]);
+    for (const { tariffId } of tariffs) {
+      const versions = await this.listVersions(
+        context,
+        context.organisationId,
+        tariffId,
+      );
+      const draft = versions.find((tariff) => tariff.status === "draft");
+      if (draft)
+        return this.get(
+          context,
+          context.organisationId,
+          tariffId,
+          draft.version,
+        );
+    }
+    return null;
+  }
+
   async listVersions(
     context: AccessContext,
     organisationId: string,

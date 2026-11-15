@@ -1,111 +1,70 @@
-import { createHash, createHmac, randomBytes } from "node:crypto";
+// Server-side sessions in PostgreSQL. The cookie holds a random value; the database holds
+// only its hash, so a leaked table cannot be used to sign in.
+
+import { randomBytes } from "node:crypto";
+import { hashToken } from "../db/credentials.ts";
+import type { Database } from "../db/pool.ts";
 import type { SessionRecord } from "./types.ts";
 
 export const SESSION_COOKIE = "freight_desk_session";
-export const AUTH_STATE_COOKIE = "freight_desk_auth_state";
 
-export type CreatedSession = {
-  cookieValue: string;
-  record: SessionRecord;
-};
+const SECRET_BYTES = 32;
 
-export interface SessionStore {
-  create(userId: string, ttlSeconds: number): Promise<CreatedSession>;
-  get(cookieValue: string): Promise<SessionRecord | null>;
-  delete(cookieValue: string): Promise<void>;
-}
+export type CreatedSession = { cookieValue: string; record: SessionRecord };
 
-export type Clock = () => number;
+export class SessionStore {
+  private readonly database: Database;
 
-function hashCookieValue(cookieValue: string, secret: string): string {
-  return createHmac("sha256", secret).update(cookieValue).digest("hex");
-}
-
-export class InMemorySessionStore implements SessionStore {
-  private readonly sessions = new Map<string, SessionRecord>();
-
-  private readonly secret: string;
-  private readonly now: Clock;
-
-  public constructor(secret: string, now: Clock = () => Date.now()) {
-    this.secret = secret;
-    this.now = now;
+  constructor(database: Database) {
+    this.database = database;
   }
 
-  public async create(
-    userId: string,
-    ttlSeconds: number,
-  ): Promise<CreatedSession> {
-    const cookieValue = randomBytes(32).toString("base64url");
-    const createdAt = this.now();
-    const record: SessionRecord = {
-      userId,
-      createdAt,
-      expiresAt: createdAt + ttlSeconds * 1_000,
-      csrfToken: randomBytes(32).toString("base64url"),
+  async create(userId: string, ttlSeconds: number): Promise<CreatedSession> {
+    const cookieValue = randomBytes(SECRET_BYTES).toString("base64url");
+    const csrfToken = randomBytes(SECRET_BYTES).toString("base64url");
+    const { rows } = await this.database.query<Row>(
+      `INSERT INTO user_sessions (token_hash, user_account_id, csrf_token, expires_at)
+       VALUES ($1, $2, $3, now() + make_interval(secs => $4))
+       RETURNING created_at, expires_at`,
+      [hashToken(cookieValue), userId, csrfToken, ttlSeconds],
+    );
+    return {
+      cookieValue,
+      record: toRecord(userId, csrfToken, rows[0] as Row),
     };
-    this.sessions.set(hashCookieValue(cookieValue, this.secret), record);
-    return { cookieValue, record };
   }
 
-  public async get(cookieValue: string): Promise<SessionRecord | null> {
-    const key = hashCookieValue(cookieValue, this.secret);
-    const record = this.sessions.get(key);
-    if (!record) return null;
-    if (record.expiresAt <= this.now()) {
-      this.sessions.delete(key);
+  async get(cookieValue: string): Promise<SessionRecord | null> {
+    const { rows } = await this.database.query<Row & UserRow>(
+      `SELECT user_account_id, csrf_token, created_at, expires_at
+       FROM user_sessions WHERE token_hash = $1`,
+      [hashToken(cookieValue)],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    if (row.expires_at.getTime() <= Date.now()) {
+      await this.delete(cookieValue);
       return null;
     }
-    return record;
+    return toRecord(row.user_account_id, row.csrf_token, row);
   }
 
-  public async delete(cookieValue: string): Promise<void> {
-    this.sessions.delete(hashCookieValue(cookieValue, this.secret));
-  }
-}
-
-export type AuthTransaction = {
-  state: string;
-  nonce: string;
-  codeVerifier: string;
-  expiresAt: number;
-};
-
-export interface AuthTransactionStore {
-  create(
-    transaction: Omit<AuthTransaction, "expiresAt">,
-    ttlSeconds: number,
-  ): Promise<void>;
-  consume(state: string): Promise<AuthTransaction | null>;
-}
-
-export class InMemoryAuthTransactionStore implements AuthTransactionStore {
-  private readonly transactions = new Map<string, AuthTransaction>();
-
-  private readonly now: Clock;
-
-  public constructor(now: Clock = () => Date.now()) {
-    this.now = now;
-  }
-
-  public async create(
-    transaction: Omit<AuthTransaction, "expiresAt">,
-    ttlSeconds: number,
-  ): Promise<void> {
-    this.transactions.set(
-      createHash("sha256").update(transaction.state).digest("hex"),
-      {
-        ...transaction,
-        expiresAt: this.now() + ttlSeconds * 1_000,
-      },
+  async delete(cookieValue: string): Promise<void> {
+    await this.database.query(
+      "DELETE FROM user_sessions WHERE token_hash = $1",
+      [hashToken(cookieValue)],
     );
   }
+}
 
-  public async consume(state: string): Promise<AuthTransaction | null> {
-    const key = createHash("sha256").update(state).digest("hex");
-    const transaction = this.transactions.get(key);
-    this.transactions.delete(key);
-    if (!transaction || transaction.expiresAt <= this.now()) return null;
-    return transaction;
-  }
+type Row = { created_at: Date; expires_at: Date };
+type UserRow = { user_account_id: string; csrf_token: string };
+
+function toRecord(userId: string, csrfToken: string, row: Row): SessionRecord {
+  return {
+    userId,
+    csrfToken,
+    createdAt: row.created_at.getTime(),
+    expiresAt: row.expires_at.getTime(),
+  };
 }

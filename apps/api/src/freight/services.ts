@@ -11,11 +11,13 @@ import type { FreightDependencies } from "./routes.ts";
 
 export function createFreightServices(
   storage: StorageAdapter,
+  listCarriers: FreightDependencies["listCarriers"],
 ): FreightDependencies {
   const documents = new Documents(storage);
   const imports = new ImportService({ documents, permissions });
   const tariffs = new TariffService({ documents, permissions });
   return {
+    listCarriers,
     imports,
     library: new ImportLibrary(imports, documents),
     tariffs,

@@ -5,7 +5,7 @@ and SharePoint storage. Code lives in `apps/api/src` and `packages/shared/src`.
 
 ## Sign-in and permissions
 
-- Sign-in is the Entra / mock flow in `apps/api/src/auth`. Every freight route runs behind
+- Sign-in is e-mail and password in `apps/api/src/auth`. Every freight route runs behind
   `requireAuth`, and every route that changes data also checks the CSRF token and the
   `Origin` header (`requireCsrfOnWrites`).
 - `accessContextOf(user)` (`auth/principal.ts`) turns the signed-in user into the
@@ -55,7 +55,7 @@ Uploads are also capped by `MAX_UPLOAD_BYTES`.
   organisation data has names.
 - `modules/files` and `infrastructure/microsoft365` from the platform foundation are not
   used by the running app; the storage adapter replaced that design.
-- Nothing has been tested against a real Microsoft 365 tenant or a real Entra sign-in.
+- Nothing has been tested against a real Microsoft 365 tenant.
 
 ## Pricing rules that need customer approval
 

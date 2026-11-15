@@ -30,6 +30,6 @@ SharePoint storage; see [docs/INTEGRATION_CONTRACTS.md](docs/INTEGRATION_CONTRAC
 Add each new feature in its workspace and keep validated shared data shapes in
 `packages/shared`.
 
-The current API includes an authentication foundation with local mock identities and a
-Microsoft Entra ID BFF path. Read [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) before
-enabling `AUTH_MODE=entra`; production secrets and directory data must stay server-side.
+People log in with e-mail and password; accounts live in PostgreSQL. Microsoft 365 is used only to
+save files in SharePoint. Read [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) and
+[docs/GO_LIVE.md](docs/GO_LIVE.md).

@@ -101,7 +101,7 @@ function assertCsrf(request: FastifyRequest, environment: ApiEnvironment) {
   const csrfToken = Array.isArray(csrfHeader) ? csrfHeader[0] : csrfHeader;
   const expected = request.auth.session.csrfToken;
   if (
-    origin !== environment.APP_ORIGIN ||
+    origin !== new URL(environment.APP_ORIGIN).origin ||
     !csrfToken ||
     !constantTimeEqual(csrfToken, expected)
   ) {

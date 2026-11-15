@@ -32,6 +32,17 @@ export type SharePointMetadataFields = {
   retentionUntil: string;
 };
 
+// The library columns the adapter reads and writes. They must exist in the document library.
+export const DEFAULT_METADATA_FIELDS: SharePointMetadataFields = {
+  organizationId: "FreightOrganisationId",
+  ownerId: "FreightOwnerId",
+  fileId: "FreightFileId",
+  destination: "FreightDestination",
+  processingStatus: "FreightProcessingStatus",
+  retentionHold: "FreightRetentionHold",
+  retentionUntil: "FreightRetentionUntil",
+};
+
 export type SharePointStorageConfig = {
   driveId: string;
   rootItemId: string;
@@ -81,16 +92,7 @@ export class SharePointStorageAdapter implements StorageAdapter {
       config.chunkSizeBytes ?? DEFAULT_CHUNK_SIZE,
     );
     this.uploadSessionTtlMs = config.uploadSessionTtlMs ?? UPLOAD_SESSION_TTL;
-    this.fields = {
-      organizationId: "FreightOrganisationId",
-      ownerId: "FreightOwnerId",
-      fileId: "FreightFileId",
-      destination: "FreightDestination",
-      processingStatus: "FreightProcessingStatus",
-      retentionHold: "FreightRetentionHold",
-      retentionUntil: "FreightRetentionUntil",
-      ...config.metadataFields,
-    };
+    this.fields = { ...DEFAULT_METADATA_FIELDS, ...config.metadataFields };
   }
 
   async ensureInitialFolders(): Promise<void> {

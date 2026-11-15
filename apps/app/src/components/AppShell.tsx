@@ -64,6 +64,11 @@ export function AppShell({
           </button>
         </div>
       </header>
+      {user.role === "master" && user.storageMode === "local" ? (
+        <div className="storage-mode-banner" role="status">
+          {copy.localStorageActive}
+        </div>
+      ) : null}
       <main>{children}</main>
     </div>
   );

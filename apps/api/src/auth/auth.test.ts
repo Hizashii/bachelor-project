@@ -1,245 +1,379 @@
-import { describe, expect, it } from "vitest";
+// Sign-in with e-mail and password against a real PostgreSQL: login, lockout, sessions,
+// CSRF, invitations, password reset and change. Skipped unless TEST_DATABASE_URL is set.
+
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApi } from "../app.ts";
-import { type ApiEnvironment, loadApiEnvironment } from "../config/env.ts";
 import {
-  canAccessCompany,
-  canAccessOffer,
-  canAccessTender,
-} from "./authorization.ts";
-import { InMemoryUserDirectory } from "./directory.ts";
-import { AuthService } from "./service.ts";
-import { InMemorySessionStore } from "./sessions.ts";
+  createTestApp,
+  TEST_PASSWORD,
+  testEnvironment,
+} from "../testing/testApp.ts";
+import { testDatabaseUrl } from "../testing/testDatabase.ts";
+import { INVITATION_HOURS, MAX_FAILED_LOGINS } from "./service.ts";
 
-const testEnvironment: ApiEnvironment = loadApiEnvironment({
-  NODE_ENV: "test",
-  APP_ORIGIN: "http://localhost:4173",
-  API_ORIGIN: "http://localhost:3000",
-  AUTH_MODE: "mock",
-  COOKIE_SECURE: "true",
-  SESSION_SECRET: "test-session-secret-that-is-long-enough",
-  SESSION_TTL_SECONDS: "300",
-});
+const origin = { origin: testEnvironment.APP_ORIGIN };
+const NEW_PASSWORD = "another long passphrase 42";
 
-function rawCookieHeader(response: { headers: unknown }): string {
-  const headers = response.headers as { [key: string]: unknown };
-  const setCookie = headers["set-cookie"];
-  const firstCookie = Array.isArray(setCookie) ? setCookie[0] : setCookie;
-  if (typeof firstCookie !== "string")
-    throw new Error("The response did not set a session cookie.");
-  return firstCookie;
+function tokenOf(link: string): string {
+  return new URL(link).searchParams.get("token") ?? "";
 }
 
-function cookieHeader(response: { headers: unknown }): string {
-  return rawCookieHeader(response).split(";", 1)[0];
-}
+describe.skipIf(!testDatabaseUrl)("password sign-in", () => {
+  let t: Awaited<ReturnType<typeof createTestApp>>;
+  let carrierId: string;
 
-describe("Freight Desk authentication", () => {
-  it("returns no profile without a valid server-side session", async () => {
-    const api = buildApi({ environment: testEnvironment });
-    const response = await api.inject({ method: "GET", url: "/api/me" });
-    expect(response.statusCode).toBe(401);
-    expect(response.json()).toEqual({ error: "unauthenticated" });
+  beforeAll(async () => {
+    t = await createTestApp();
+    carrierId = (await t.accounts.createCarrier("Blue Fjord ApS", "Blue Fjord"))
+      .id;
+    await t.addUser({ email: "staff@example.test", role: "consultant" });
+    await t.addUser({ email: "boss@example.test", role: "master" });
+    await t.addUser({
+      email: "dana@bluefjord.test",
+      role: "carrier",
+      carrierId,
+    });
+  });
+  afterAll(() => t.database.end());
+
+  const post = (
+    url: string,
+    payload: Record<string, unknown>,
+    headers: Record<string, string> = origin,
+  ) => t.app.inject({ method: "POST", url, headers, payload });
+
+  it("signs in with the right password and shows the server-side role and company", async () => {
+    const { status, headers } = await t.login("Dana@BlueFjord.test");
+    expect(status).toBe(200);
+    const me = await t.app.inject({ method: "GET", url: "/api/me", headers });
+    expect(me.json().user).toMatchObject({
+      role: "carrier",
+      companyId: carrierId,
+    });
+    expect(me.json().user).not.toHaveProperty("passwordHash");
   });
 
-  it("keeps carrier access inside the provisioned company", async () => {
-    const api = buildApi({ environment: testEnvironment });
-    const login = await api.inject({
-      method: "GET",
-      url: "/auth/mock/login?identity=carrier",
+  it("gives the same answer for a wrong password and an unknown e-mail", async () => {
+    const wrong = await post("/auth/login", {
+      email: "staff@example.test",
+      password: "not the password",
     });
-    const cookie = cookieHeader(login);
-    expect(rawCookieHeader(login)).toContain("HttpOnly");
-    expect(rawCookieHeader(login)).toContain("Secure");
-    expect(rawCookieHeader(login)).toContain("SameSite=Lax");
-
-    const ownCompany = await api.inject({
-      method: "GET",
-      url: "/api/companies/carrier-blue-fjord",
-      headers: { cookie },
+    const unknown = await post("/auth/login", {
+      email: "nobody@example.test",
+      password: "not the password",
     });
-    const otherCompany = await api.inject({
-      method: "GET",
-      url: "/api/companies/carrier-northstar",
-      headers: { cookie },
-    });
-
-    expect(ownCompany.statusCode).toBe(200);
-    expect(otherCompany.statusCode).toBe(403);
+    expect(wrong.statusCode).toBe(401);
+    expect(unknown.statusCode).toBe(401);
+    expect(wrong.json()).toEqual(unknown.json());
+    expect(wrong.headers["set-cookie"]).toBeUndefined();
   });
 
-  it("does not allow a carrier to escalate through a request role value", async () => {
-    const api = buildApi({ environment: testEnvironment });
-    const login = await api.inject({
-      method: "GET",
-      url: "/auth/mock/login?identity=carrier",
+  it("sets an HttpOnly session cookie and refuses a login from another site", async () => {
+    const ok = await post("/auth/login", {
+      email: "staff@example.test",
+      password: TEST_PASSWORD,
     });
-    const cookie = cookieHeader(login);
-
-    const profile = await api.inject({
-      method: "GET",
-      url: "/api/me?role=master",
-      headers: { cookie, "x-role": "master" },
-    });
-    const masterRoute = await api.inject({
-      method: "GET",
-      url: "/api/master/authorization-check",
-      headers: { cookie },
-    });
-
-    expect(profile.statusCode).toBe(200);
-    expect(profile.json().user.role).toBe("carrier");
-    expect(masterRoute.statusCode).toBe(403);
-  });
-
-  it("rejects missing roles and grants the master guard only to master users", async () => {
-    const api = buildApi({ environment: testEnvironment });
-    const consultantLogin = await api.inject({
-      method: "GET",
-      url: "/auth/mock/login?identity=consultant",
-    });
-    const masterLogin = await api.inject({
-      method: "GET",
-      url: "/auth/mock/login?identity=master",
-    });
-
-    const consultant = await api.inject({
-      method: "GET",
-      url: "/api/master/authorization-check",
-      headers: { cookie: cookieHeader(consultantLogin) },
-    });
-    const master = await api.inject({
-      method: "GET",
-      url: "/api/master/authorization-check",
-      headers: { cookie: cookieHeader(masterLogin) },
-    });
-
-    expect(consultant.statusCode).toBe(403);
-    expect(master.statusCode).toBe(200);
-  });
-
-  it("expires server-side sessions without trusting cookie contents", async () => {
-    let now = 10_000;
-    const sessions = new InMemorySessionStore(
-      testEnvironment.SESSION_SECRET,
-      () => now,
+    expect(String(ok.headers["set-cookie"])).toMatch(/HttpOnly/i);
+    expect(String(ok.headers["set-cookie"])).toMatch(/SameSite=Strict/i);
+    const foreign = await post(
+      "/auth/login",
+      { email: "staff@example.test", password: TEST_PASSWORD },
+      { origin: "https://evil.example.test" },
     );
-    const created = await sessions.create("user-consultant-demo", 300);
-    const api = buildApi({ environment: testEnvironment, sessions });
+    expect(foreign.statusCode).toBe(403);
+    const missingOrigin = await post(
+      "/auth/login",
+      { email: "staff@example.test", password: TEST_PASSWORD },
+      {},
+    );
+    expect(missingOrigin.statusCode).toBe(403);
+  });
 
-    now += 301_000;
-    const response = await api.inject({
+  it("locks an account after repeated wrong passwords, even for the right one", async () => {
+    await t.addUser({ email: "locked@example.test", role: "consultant" });
+    for (let i = 0; i < MAX_FAILED_LOGINS; i += 1) {
+      await post("/auth/login", {
+        email: "locked@example.test",
+        password: "wrong password here",
+      });
+    }
+    const right = await post("/auth/login", {
+      email: "locked@example.test",
+      password: TEST_PASSWORD,
+    });
+    expect(right.statusCode).toBe(401);
+  });
+
+  it("rate-limits login attempts from one address", async () => {
+    const strict = buildApi({
+      environment: { ...testEnvironment, LOGIN_ATTEMPTS_PER_MINUTE: 5 },
+      database: t.database,
+      storage: t.storage,
+    });
+    const codes: number[] = [];
+    for (let i = 0; i < 8; i += 1) {
+      const response = await strict.inject({
+        method: "POST",
+        url: "/auth/login",
+        headers: origin,
+        payload: { email: "x@example.test", password: "nope nope nope" },
+      });
+      codes.push(response.statusCode);
+    }
+    expect(codes.slice(0, 5)).toEqual([401, 401, 401, 401, 401]);
+    expect(codes.slice(5)).toEqual([429, 429, 429]);
+  });
+
+  it("refuses a disabled account and ends its session at once", async () => {
+    const created = await t.addUser({
+      email: "temp@example.test",
+      role: "consultant",
+    });
+    const { headers } = await t.login("temp@example.test");
+    await t.accounts.setUserStatus(created.id, "suspended");
+    const after = await t.app.inject({
       method: "GET",
       url: "/api/me",
-      headers: { cookie: `freight_desk_session=${created.cookieValue}` },
+      headers,
     });
+    expect(after.statusCode).toBe(401);
+    const again = await post("/auth/login", {
+      email: "temp@example.test",
+      password: TEST_PASSWORD,
+    });
+    expect(again.statusCode).toBe(403);
+  });
 
+  it("logs out only with the CSRF token, and the old cookie stops working", async () => {
+    const { headers } = await t.login("staff@example.test");
+    const { "x-csrf-token": _token, ...withoutCsrf } = headers;
+    expect(
+      (
+        await t.app.inject({
+          method: "POST",
+          url: "/auth/logout",
+          headers: withoutCsrf,
+        })
+      ).statusCode,
+    ).toBe(403);
+    expect(
+      (await t.app.inject({ method: "POST", url: "/auth/logout", headers }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await t.app.inject({ method: "GET", url: "/api/me", headers }))
+        .statusCode,
+    ).toBe(401);
+  });
+
+  it("rejects an expired session", async () => {
+    const created = await t.credentials.findByEmail("staff@example.test");
+    const session = await new (await import("./sessions.ts")).SessionStore(
+      t.database,
+    ).create(created?.user.id ?? "", 1);
+    await t.database.query(
+      "UPDATE user_sessions SET expires_at = now() - interval '1 minute'",
+    );
+    const response = await t.app.inject({
+      method: "GET",
+      url: "/api/me",
+      headers: { cookie: `freight_desk_session=${session.cookieValue}` },
+    });
     expect(response.statusCode).toBe(401);
   });
 
-  it("requires same-origin CSRF protection for logout", async () => {
-    const api = buildApi({ environment: testEnvironment });
-    const login = await api.inject({
-      method: "GET",
-      url: "/auth/mock/login?identity=consultant",
-    });
-    const cookie = cookieHeader(login);
-    const csrf = await api.inject({
-      method: "GET",
-      url: "/api/csrf",
-      headers: { cookie },
-    });
-    const token = csrf.json().token as string;
-
-    const missingCsrf = await api.inject({
+  it("invites a new employee: the link works once and sets the first password", async () => {
+    const admin = await t.login("boss@example.test");
+    const created = await t.app.inject({
       method: "POST",
-      url: "/auth/logout",
-      headers: { cookie, origin: testEnvironment.APP_ORIGIN },
-    });
-    const loggedOut = await api.inject({
-      method: "POST",
-      url: "/auth/logout",
-      headers: {
-        cookie,
-        origin: testEnvironment.APP_ORIGIN,
-        "x-csrf-token": token,
+      url: "/api/admin/users",
+      headers: admin.headers,
+      payload: {
+        email: "new@example.test",
+        displayName: "New Person",
+        role: "consultant",
       },
     });
-    const profileAfterLogout = await api.inject({
-      method: "GET",
-      url: "/api/me",
-      headers: { cookie },
-    });
+    expect(created.statusCode).toBe(201);
+    const token = tokenOf(created.json().invitationLink);
+    expect(
+      (
+        await post("/auth/login", {
+          email: "new@example.test",
+          password: NEW_PASSWORD,
+        })
+      ).statusCode,
+    ).toBe(401);
 
-    expect(missingCsrf.statusCode).toBe(403);
-    expect(loggedOut.statusCode).toBe(200);
-    expect(profileAfterLogout.statusCode).toBe(401);
-  });
-});
-
-describe("resource authorization helpers", () => {
-  const carrier = { role: "carrier" as const, companyId: "carrier-blue-fjord" };
-  const consultant = { role: "consultant" as const, companyId: null };
-
-  it("enforces company ownership and shared tender/offer boundaries", () => {
-    expect(canAccessCompany(carrier, "carrier-blue-fjord")).toBe(true);
-    expect(canAccessCompany(carrier, "carrier-northstar")).toBe(false);
     expect(
-      canAccessTender(carrier, {
-        invitedCarrierCompanyIds: ["carrier-northstar"],
-      }),
-    ).toBe(false);
+      (await post("/auth/accept-invitation", { token, password: "short" }))
+        .statusCode,
+    ).toBe(400);
     expect(
-      canAccessTender(carrier, {
-        invitedCarrierCompanyIds: ["carrier-blue-fjord"],
-      }),
-    ).toBe(true);
+      (await post("/auth/accept-invitation", { token, password: NEW_PASSWORD }))
+        .statusCode,
+    ).toBe(200);
     expect(
-      canAccessOffer(carrier, { carrierCompanyId: "carrier-northstar" }),
-    ).toBe(false);
+      (await post("/auth/accept-invitation", { token, password: NEW_PASSWORD }))
+        .statusCode,
+    ).toBe(400);
     expect(
-      canAccessOffer(consultant, { carrierCompanyId: "carrier-northstar" }),
-    ).toBe(true);
-  });
-});
-
-describe("trusted directory validation", () => {
-  it("rejects a carrier record without a validated company", () => {
-    expect(
-      () =>
-        new InMemoryUserDirectory([
-          {
-            id: "invalid-carrier",
-            subject: "invalid-subject",
-            tenantId: "tenant",
-            email: "carrier@example.invalid",
-            displayName: "Invalid Carrier",
-            role: "carrier",
-            companyId: null,
-            active: true,
-          },
-        ]),
-    ).toThrow("validated carrier company");
+      (
+        await post("/auth/login", {
+          email: "new@example.test",
+          password: NEW_PASSWORD,
+        })
+      ).statusCode,
+    ).toBe(200);
   });
 
-  it("requires MFA evidence for Entra sessions", async () => {
-    const environment = { ...testEnvironment, AUTH_MODE: "entra" as const };
-    const auth = new AuthService({
-      environment,
-      directory: new InMemoryUserDirectory(),
-      sessions: new InMemorySessionStore(environment.SESSION_SECRET),
+  it("does not accept an expired invitation or a made-up token", async () => {
+    const admin = await t.login("boss@example.test");
+    const created = await t.app.inject({
+      method: "POST",
+      url: "/api/admin/users",
+      headers: admin.headers,
+      payload: {
+        email: "late@example.test",
+        displayName: "Late",
+        role: "consultant",
+      },
     });
+    await t.database.query(
+      "UPDATE user_tokens SET expires_at = now() - interval '1 hour'",
+    );
+    const token = tokenOf(created.json().invitationLink);
+    expect(
+      (await post("/auth/accept-invitation", { token, password: NEW_PASSWORD }))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (
+        await post("/auth/accept-invitation", {
+          token: "x".repeat(43),
+          password: NEW_PASSWORD,
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect(INVITATION_HOURS).toBeGreaterThan(0);
+  });
 
-    await expect(
-      auth.createSession({
-        subject: "mock-subject-consultant",
-        tenantId: "mock-tenant",
-        email: "consultant.user@demo.freightdesk.test",
-        displayName: "Consultant Demo User",
-        mfaVerified: false,
-      }),
-    ).rejects.toMatchObject({
-      code: "mfa_required",
-      statusCode: 403,
+  it("resets a password with an administrator's link and ends the old sessions", async () => {
+    const admin = await t.login("boss@example.test");
+    const dana = await t.login("dana@bluefjord.test");
+    const users = (
+      await t.app.inject({
+        method: "GET",
+        url: "/api/admin/users",
+        headers: admin.headers,
+      })
+    ).json();
+    const danaId = users.find(
+      (u: { email: string }) => u.email === "dana@bluefjord.test",
+    ).id;
+    const reset = await t.app.inject({
+      method: "POST",
+      url: `/api/admin/users/${danaId}/password-reset`,
+      headers: admin.headers,
     });
+    const token = tokenOf(reset.json().link);
+    expect(
+      (await post("/auth/reset-password", { token, password: NEW_PASSWORD }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await t.app.inject({
+          method: "GET",
+          url: "/api/me",
+          headers: dana.headers,
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await post("/auth/login", {
+          email: "dana@bluefjord.test",
+          password: TEST_PASSWORD,
+        })
+      ).statusCode,
+    ).toBe(401);
+    expect(
+      (
+        await post("/auth/login", {
+          email: "dana@bluefjord.test",
+          password: NEW_PASSWORD,
+        })
+      ).statusCode,
+    ).toBe(200);
+  });
+
+  it("changes a password only with the current one, then requires a new login", async () => {
+    const { headers } = await t.login("staff@example.test");
+    const wrong = await t.app.inject({
+      method: "POST",
+      url: "/api/me/password",
+      headers,
+      payload: {
+        currentPassword: "not my password",
+        newPassword: NEW_PASSWORD,
+      },
+    });
+    expect(wrong.statusCode).toBe(403);
+    const ok = await t.app.inject({
+      method: "POST",
+      url: "/api/me/password",
+      headers,
+      payload: { currentPassword: TEST_PASSWORD, newPassword: NEW_PASSWORD },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(
+      (await t.app.inject({ method: "GET", url: "/api/me", headers }))
+        .statusCode,
+    ).toBe(401);
+    expect((await t.login("staff@example.test", NEW_PASSWORD)).status).toBe(
+      200,
+    );
+  });
+
+  it("keeps administration for masters: staff and carriers are refused", async () => {
+    const carrier = await t.login("dana@bluefjord.test", NEW_PASSWORD);
+    const staff = await t.login("staff@example.test", NEW_PASSWORD);
+    for (const who of [carrier, staff]) {
+      expect(
+        (
+          await t.app.inject({
+            method: "GET",
+            url: "/api/admin/users",
+            headers: who.headers,
+          })
+        ).statusCode,
+      ).toBe(403);
+    }
+    expect(
+      (await t.app.inject({ method: "GET", url: "/api/admin/users" }))
+        .statusCode,
+    ).toBe(401);
+  });
+
+  it("stops an administrator from suspending themselves or the last administrator", async () => {
+    const admin = await t.login("boss@example.test");
+    const users = (
+      await t.app.inject({
+        method: "GET",
+        url: "/api/admin/users",
+        headers: admin.headers,
+      })
+    ).json();
+    const bossId = users.find(
+      (u: { email: string }) => u.email === "boss@example.test",
+    ).id;
+    const response = await t.app.inject({
+      method: "PATCH",
+      url: `/api/admin/users/${bossId}`,
+      headers: admin.headers,
+      payload: { status: "suspended" },
+    });
+    expect(response.statusCode).toBe(409);
   });
 });

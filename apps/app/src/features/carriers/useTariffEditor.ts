@@ -2,11 +2,12 @@
 // "Saved" is only shown after the server confirms it; an unsaved change is always visible.
 
 import { validateTariff } from "@freight-desk/shared";
-import { useMemo, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { apiFetch, postJson } from "../../api/client";
 import {
   type EditorState,
   emptyState,
+  stateFromTariff,
   type TariffMeta,
   toTariff,
 } from "./tariffDraft.ts";
@@ -15,6 +16,7 @@ import { editorReducer } from "./tariffReducer.ts";
 export type SaveStatus = "idle" | "saving" | "saved" | "failed" | "submitted";
 
 const today = () => new Date().toISOString().slice(0, 10);
+type EditorMeta = Pick<TariffMeta, "tariffId" | "version">;
 
 export function useTariffEditor(
   organisationId: string | null,
@@ -22,14 +24,37 @@ export function useTariffEditor(
 ) {
   const [initial] = useState(() => emptyState(today()));
   const [state, dispatch] = useReducer(editorReducer, initial);
-  const [meta] = useState(() => ({
+  const [meta, setMeta] = useState<EditorMeta>(() => ({
     tariffId: crypto.randomUUID(),
     version: 1,
   }));
   const [status, setStatus] = useState<SaveStatus>("idle");
-  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [savedSnapshot, setSavedSnapshot] = useState(() =>
+    JSON.stringify(initial),
+  );
   const [etag, setEtag] = useState<string | undefined>(undefined);
+  const loadedFor = useRef<string | null>(null);
   const snapshot = JSON.stringify(state);
+
+  useEffect(() => {
+    if (!organisationId || loadedFor.current === organisationId) return;
+    loadedFor.current = organisationId;
+    void apiFetch<{ tariff: ReturnType<typeof toTariff>; etag: string } | null>(
+      "/api/tariffs/mine",
+    )
+      .then((saved) => {
+        if (!saved) return;
+        const next = stateFromTariff(saved.tariff);
+        setMeta({
+          tariffId: saved.tariff.tariffId,
+          version: saved.tariff.version,
+        });
+        setEtag(saved.etag);
+        setSavedSnapshot(JSON.stringify(next));
+        dispatch({ type: "replace", state: next });
+      })
+      .catch(() => undefined);
+  }, [organisationId]);
 
   const tariff = useMemo(() => {
     const full: TariffMeta = {

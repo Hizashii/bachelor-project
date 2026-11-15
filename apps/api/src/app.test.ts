@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { buildApi } from "./app.ts";
 import { loadApiEnvironment } from "./config/env.ts";
+import { createDatabase } from "./db/pool.ts";
 
 const environment = loadApiEnvironment({
   NODE_ENV: "test",
   APP_ORIGIN: "http://localhost:4173",
   API_ORIGIN: "http://localhost:3000",
+  DATABASE_URL: "postgresql://unused:unused@localhost/unused",
 });
 
 describe("API application boundary", () => {
   it("exposes a health response with baseline security headers", async () => {
-    const api = await buildApi({ environment });
+    // The health check never touches the database, so no connection is made.
+    const database = createDatabase(environment.DATABASE_URL);
+    const api = buildApi({ environment, database });
 
     try {
       const response = await api.inject({ method: "GET", url: "/health" });
@@ -19,7 +23,6 @@ describe("API application boundary", () => {
       expect(response.json()).toEqual({
         status: "ok",
         service: "freight-desk-api",
-        authMode: "mock",
       });
       expect(response.headers["x-content-type-options"]).toBe("nosniff");
       expect(response.headers["x-frame-options"]).toBe("DENY");
@@ -36,6 +39,7 @@ describe("API application boundary", () => {
       });
     } finally {
       await api.close();
+      await database.end();
     }
   });
 });

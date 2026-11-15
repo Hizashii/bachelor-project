@@ -1,7 +1,7 @@
 // Browser tests for upload, carrier tariffs and comparison against the test server.
 // All files are generated here from synthetic rows.
 
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const shipmentsCsv = [
   "Forsendelsesnr;Fra postnr;Til postnr;Vægt (kg)",
@@ -10,8 +10,25 @@ const shipmentsCsv = [
   "S-1;8300;2680;100",
 ].join("\n");
 
+const PASSWORD = "correct horse battery staple";
+
+async function logIn(page: Page, email: string) {
+  await page.goto("/login");
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  const loginResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/auth/login") &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Log in" }).click();
+  expect((await loginResponse).ok()).toBe(true);
+  await expect(page.getByRole("button", { name: "Log ud" })).toBeVisible();
+}
+
 test.beforeEach(async ({ page }) => {
-  await page.goto("/auth/mock/login?identity=master");
+  await logIn(page, "staff@example.test");
 });
 
 test("upload: map columns, process, see issues and download", async ({
@@ -43,8 +60,10 @@ test("upload: map columns, process, see issues and download", async ({
   await page.getByRole("button", { name: "Download resultat" }).click();
   expect((await download).suggestedFilename()).toBe("shipments-processed.xlsx");
 
-  await page.getByRole("button", { name: "Gem i Microsoft 365" }).click();
-  await expect(page.getByText("Gemt i Microsoft 365.")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Gem i virksomhedens lagring" })
+    .click();
+  await expect(page.getByText("Gemt i virksomhedens lagring.")).toBeVisible();
 });
 
 test("upload: draft is saved and can be reopened", async ({ page }) => {
@@ -56,7 +75,7 @@ test("upload: draft is saved and can be reopened", async ({ page }) => {
   });
   await page.getByRole("button", { name: "Gem kladde" }).click();
   await expect(
-    page.getByText("Kladden er gemt i Microsoft 365."),
+    page.getByText("Kladden er gemt i virksomhedens lagring."),
   ).toBeVisible();
 
   await page.reload();
@@ -72,7 +91,9 @@ test("upload: draft is saved and can be reopened", async ({ page }) => {
 test("carrier portal: import rate sheet, check zones, price a sample, save draft", async ({
   page,
 }) => {
-  await page.goto("/auth/mock/login?identity=carrier");
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await logIn(page, "dana@bluefjord.test");
   await page.goto("/carriers");
   const sheet = [
     "Pris pr. 100 kg;Zone A (00-26);Zone B (30-36)",
@@ -113,9 +134,7 @@ test("compare: shows the calculated price and marks reliability as not available
   await page.getByLabel("Vægt (kg)").fill("250");
   await page.getByRole("button", { name: "Sammenlign priser" }).click();
 
-  await expect(
-    page.getByText("carrier-blue-fjord", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Blue Fjord", { exact: true })).toBeVisible();
   await expect(page.getByText("500,00 DKK").first()).toBeVisible();
   await expect(page.getByText("Ikke tilgængelig").first()).toBeVisible();
   await expect(page.getByText(/%/)).toHaveCount(0);

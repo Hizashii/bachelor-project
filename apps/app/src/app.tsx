@@ -1,6 +1,11 @@
 import { type ReactElement, useState } from "react";
 import { Navigate, Route, Routes } from "react-router";
-import { LoginScreen, type UserRole, useAuth } from "./auth/auth";
+import {
+  AcceptInvitationScreen,
+  LoginScreen,
+  ResetPasswordScreen,
+} from "./auth/AuthScreens";
+import { type UserRole, useAuth } from "./auth/auth";
 import { AppShell } from "./components/AppShell";
 import { CarrierPortal } from "./features/carriers/CarrierPortal";
 import { CompareOffers } from "./features/compare/CompareOffers";
@@ -24,7 +29,7 @@ export function App(): ReactElement {
       </div>
     );
   }
-  if (!auth.user) return <LoginScreen />;
+  if (!auth.user) return signedOutScreen(window.location.pathname);
 
   return (
     <AppShell
@@ -78,4 +83,10 @@ function RoleRoute({
   ) : (
     <Navigate to="/carriers" replace />
   );
+}
+
+function signedOutScreen(path: string): ReactElement {
+  if (path === "/accept-invitation") return <AcceptInvitationScreen />;
+  if (path === "/reset-password") return <ResetPasswordScreen />;
+  return <LoginScreen />;
 }

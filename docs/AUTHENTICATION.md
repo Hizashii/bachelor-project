@@ -1,151 +1,49 @@
-# Freight Desk authentication and authorization
+# Authentication and access
 
-This document describes the authentication boundary implemented for the Freight Desk API.
-It is intentionally separate from tender, pricing, calculator, and invoice workflows.
+Freight Desk has its own accounts. People log in with e-mail and password. Microsoft 365 is used
+only as the place where files are saved; nobody needs a Microsoft account to use the platform.
 
-## Security model
+## How it works
 
-Freight Desk uses a backend-for-frontend (BFF) flow:
+- **Accounts** live in PostgreSQL: users, carrier companies, roles and sessions. No freight data.
+- **Passwords** are hashed with Argon2id (`@node-rs/argon2`). The password itself is never stored.
+  Passwords must be 12 to 128 characters and must not contain the e-mail name.
+- **Login** is `POST /auth/login`. A wrong e-mail, a wrong password and a locked account all give
+  the same answer, and checking takes the same time. After 5 wrong passwords in a row the account
+  is locked for 15 minutes. Each address may try `LOGIN_ATTEMPTS_PER_MINUTE` times a minute
+  (default 10); more gets a 429.
+- **Sessions** are an opaque cookie (`HttpOnly`, `SameSite=Strict`, `Secure` in production). The
+  database holds only a hash of it. A suspended user, membership or company loses access on the
+  very next request. Changing or resetting a password ends all sessions of that user.
+- **CSRF:** every request that changes data needs the `x-csrf-token` header from `GET /api/csrf`
+  and an `Origin` equal to `APP_ORIGIN`. Login, invitation and reset requests check `Origin`.
+- **Roles:** `carrier` (one carrier company), `consultant` and `master` (consultancy staff).
+  Role and company come only from the database, never from the request. Carriers can edit,
+  submit and read their own company's tariffs and nothing else; see
+  `apps/api/src/auth/permissions.ts`.
 
-1. The browser navigates to the API's `/auth/login` route.
-2. The API starts the Microsoft Entra ID authorization-code flow with PKCE, state, and nonce.
-3. Entra redirects to `/auth/callback`; the API exchanges the code and validates the ID token
-   signature, issuer, audience, tenant, nonce, and MFA evidence.
-4. The API resolves the Entra subject against its trusted server-side directory.
-5. The browser receives only an opaque session cookie. Entra access or refresh tokens are never
-   sent to or stored by the browser.
+## Adding people
 
-Sessions store only a server-side user ID, expiry, and CSRF token. The cookie is HttpOnly,
-SameSite=Lax, and Secure when `COOKIE_SECURE=true` (required in production). Unsafe requests
-must send `x-csrf-token` and an exact `Origin` matching `APP_ORIGIN`.
+There is no public sign-up. A master creates users:
 
-Roles and company membership come only from the trusted directory. Request bodies, query-string
-role values, cookies other than the opaque session cookie, and browser storage cannot grant a role.
-Carrier directory records must reference one of the validated carrier company IDs.
+1. `POST /api/admin/carriers` creates a carrier company.
+2. `POST /api/admin/users` creates a user (`role` and, for carriers, `carrierId`). The answer
+   contains an `invitationLink` valid for 7 days. The master gives it to the person, who opens it
+   and chooses a password. The link works once.
+3. `POST /api/admin/users/:id/invitation` makes a new invitation link.
+   `POST /api/admin/users/:id/password-reset` makes a reset link valid for 2 hours.
+4. `PATCH /api/admin/users/:id` with `{"status":"suspended"}` or `"active"` switches a user off
+   or on. Nobody can suspend themselves or the last active master.
 
-## Roles
+Links are shown once and are not sent by e-mail yet; the master passes them on. Sending them by
+e-mail needs a mail service and is not built.
 
-| Role | Access boundary |
-| --- | --- |
-| `carrier` | The user's provisioned carrier company and resources explicitly shared with that company. |
-| `consultant` | Consultancy workspace resources and invited carrier comparisons. |
-| `master` | Administrative access across the consultancy workspace. |
+The first master is made on the server: `npm run admin:create -w @freight-desk/api -- name@example.com "Full Name"`
+prints an invitation link for that person.
 
-`GET /api/me` returns the safe profile used by the web shell. It does not return Entra tokens or
-directory administration data. API handlers should use `requireAuth`, `requireRole`, and the
-resource helpers in `apps/api/src/auth/authorization.ts`.
+## Microsoft 365 and Microsoft sign-in
 
-## Local development
-
-1. Copy `.env.example` to `.env.local`.
-2. Keep `AUTH_MODE=mock` and use a fictional `SESSION_SECRET` of at least 32 characters.
-3. Run `npm install` and `npm run dev`.
-4. Open the app on `http://localhost:5173` and select one of the three fictional identities.
-
-The mock identities are defined in server code and are available only when `AUTH_MODE=mock`:
-
-- `carrier.user@demo.freightdesk.test` → `carrier-blue-fjord`
-- `consultant.user@demo.freightdesk.test` → `consultant`
-- `master.user@demo.freightdesk.test` → `master`
-
-These identities are anonymized fixtures, not credentials and not customer accounts.
-
-## Microsoft Entra configuration
-
-For a real environment, set `AUTH_MODE=entra` and configure the following server-only values:
-
-```dotenv
-AUTH_MODE=entra
-COOKIE_SECURE=true
-SESSION_SECRET=<random secret with at least 32 characters>
-ENTRA_TENANT_ID=<Freight Desk resource tenant ID>
-ENTRA_CLIENT_ID=<web app registration client ID>
-ENTRA_CLIENT_SECRET=<server-side secret from the secret manager>
-ENTRA_REDIRECT_URI=https://freight.example.invalid/auth/callback
-ENTRA_POST_LOGOUT_REDIRECT_URI=https://freight.example.invalid/login
-ENTRA_SCOPES=openid profile email
-```
-
-In the Microsoft Entra admin center:
-
-1. Register a **Web** application in the Freight Desk resource tenant.
-2. Add the exact HTTPS redirect URI and post-logout redirect URI. Do not register a wildcard URI.
-3. Create a client secret only for the confidential server component and store it in the deployment
-   secret manager. Never commit it or expose it as a `VITE_` value.
-4. Use the tenant-specific v2.0 authority. The API discovers the authorization, token, issuer, and
-   JWKS endpoints from the tenant's OpenID configuration document.
-5. Provision an approved server-side directory record for each user. Map the Entra object ID (`oid`)
-   and resource tenant (`tid`) to the internal user ID, role, and—only for carriers—validated
-   `companyId`. Do not use a submitted company ID or a display email as the authorization source.
-6. Replace the current in-memory directory with the approved durable directory implementation before
-   production rollout. The `UserDirectory` interface is the boundary for that change.
-
-## MFA enforcement and verification
-
-MFA is enforced by Microsoft Entra Conditional Access; the API also rejects an Entra login unless
-the validated ID token contains MFA evidence (`amr=mfa` or an MFA authentication context in `acr`).
-The application cannot enroll or bypass MFA.
-
-Recommended rollout:
-
-1. Create a Conditional Access policy targeting the Freight Desk enterprise application and the
-   intended users, with **Grant access → Require multifactor authentication** (or the approved
-   authentication strength).
-2. Exclude only emergency access/break-glass accounts needed to recover a policy mistake.
-3. Start in **Report-only**, use What If and sign-in reports, and test a consultant, master, and
-   carrier guest account.
-4. Enable the policy after the report-only results are correct.
-5. Verify each test sign-in in Entra sign-in logs and verify that the API creates a session only when
-   the validated token contains the expected MFA evidence. A token without it must redirect with
-   `mfa_required` and must not create a session.
-
-Microsoft's Conditional Access guidance recommends report-only rollout and a baseline MFA policy;
-see [Build Conditional Access policies](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies)
-and [Require MFA for all users](https://learn.microsoft.com/en-us/entra/identity/conditional-access/policy-all-users-mfa-strength).
-
-## External carrier B2B onboarding
-
-Freight Desk should use B2B collaboration in the resource tenant rather than creating passwords for
-carrier users:
-
-1. A master/approved user administrator creates an invitation for a named carrier user, or the
-   onboarding service uses the Microsoft Graph invitation API after the carrier company has been
-   approved in Freight Desk.
-2. The invitee redeems the invitation with the identity from their home tenant. The resulting guest
-   object in the Freight Desk tenant is the identity used by the application.
-3. An administrator assigns the guest to the Freight Desk application or approved carrier group and
-   creates the matching trusted directory record with `role=carrier` and the approved carrier company
-   ID.
-4. The carrier user completes the Conditional Access MFA requirement before the first session.
-5. Offboarding disables the guest, removes the app/group assignment, deactivates the directory
-   record, and revokes active Freight Desk sessions.
-
-Required tenant controls:
-
-- restrict guest invitations to approved administrator roles;
-- restrict allowed collaboration domains to approved carrier domains;
-- review inbound and outbound cross-tenant access settings;
-- limit guest directory visibility;
-- assign only the Freight Desk enterprise application and least-privilege groups;
-- monitor guest sign-ins and invitation redemption; and
-- retain an emergency access account outside the MFA policy.
-
-See Microsoft's [B2B collaboration invitation guidance](https://learn.microsoft.com/en-us/entra/external-id/add-users-administrator)
-and [external collaboration settings](https://learn.microsoft.com/en-us/entra/external-id/external-collaboration-settings-configure).
-
-## Verification checklist
-
-- Unauthenticated `GET /api/me` returns `401`.
-- A mock sign-in creates a cookie with HttpOnly and SameSite attributes; production sets Secure.
-- `GET /api/me` returns the server-derived role and carrier company only.
-- A carrier cannot access another carrier company's guarded resource.
-- A carrier cannot reach master-only routes, even if a request body contains `role=master`.
-- Missing, wrong-origin, or incorrect CSRF headers reject logout and future unsafe routes.
-- An expired server-side session returns `401` and is removed from the session store.
-- An Entra callback with a stale state, wrong nonce, wrong issuer/audience/tenant, invalid signature,
-  or missing MFA evidence creates no session.
-- Browser devtools show no Graph, SharePoint, access-token, or refresh-token storage.
-
-Microsoft's [authorization code flow guidance](https://learn.microsoft.com/en-us/entra/identity-platform/v2-app-types)
-and [token validation guidance](https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens)
-are the protocol references for the BFF implementation.
+The server talks to SharePoint with its own application credentials (`SHAREPOINT_*`, client
+credentials and the Graph permission `Sites.Selected`). That is separate from user login and does not
+involve user accounts. `user_accounts.entra_subject` is kept empty so that an optional Microsoft
+sign-in can be added later without changing the schema.

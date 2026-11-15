@@ -20,10 +20,13 @@ const booleanEnvironmentValue = z.preprocess((value) => {
   return value;
 }, z.boolean().default(false));
 
-const MIN_SESSION_SECRET_LENGTH = 32;
 const MIN_SESSION_SECONDS = 300;
 const MAX_SESSION_SECONDS = 86_400;
 const DEFAULT_SESSION_SECONDS = 28_800;
+const DEFAULT_MAX_UPLOAD_BYTES = 52_428_800;
+const MAX_UPLOAD_BYTES_LIMIT = 5_000_000_000;
+const MAX_PORT = 65_535;
+const DEFAULT_LOGIN_ATTEMPTS_PER_MINUTE = 10;
 
 const postgresUrlSchema = z
   .string()
@@ -35,6 +38,12 @@ const environmentKeys = new Set([
   "API_ORIGIN",
   "API_HOST",
   "API_PORT",
+  "DATABASE_URL",
+  "COOKIE_SECURE",
+  "SESSION_TTL_SECONDS",
+  "TRUST_PROXY",
+  "LOGIN_ATTEMPTS_PER_MINUTE",
+  "MAX_UPLOAD_BYTES",
   "SHAREPOINT_MODE",
   "SHAREPOINT_TENANT_ID",
   "SHAREPOINT_SITE_ID",
@@ -43,32 +52,35 @@ const environmentKeys = new Set([
   "SHAREPOINT_CLIENT_SECRET",
   "SHAREPOINT_ROOT_ITEM_ID",
   "STORAGE_CURSOR_SECRET",
-  "DATABASE_URL",
-  "MAX_UPLOAD_BYTES",
-  "AUTH_MODE",
-  "COOKIE_SECURE",
-  "SESSION_SECRET",
-  "SESSION_TTL_SECONDS",
-  "AUTHORIZED_USERS_JSON",
-  "ENTRA_TENANT_ID",
-  "ENTRA_CLIENT_ID",
-  "ENTRA_CLIENT_SECRET",
-  "ENTRA_REDIRECT_URI",
-  "ENTRA_POST_LOGOUT_REDIRECT_URI",
-  "ENTRA_SCOPES",
+  "IMPORT_MAX_FILE_MB",
+  "IMPORT_MAX_ROWS",
+  "IMPORT_MAX_COLUMNS",
+  "IMPORT_MAX_CONCURRENT_JOBS",
+  "IMPORT_MAX_ATTEMPTS",
+  "IMPORT_RETENTION_MINUTES",
+  "STORAGE_MODE",
+  "LOCAL_STORAGE_DIR",
 ]);
+
+// A misspelled setting in one of our own groups is an error, not a silent default.
+const OWN_PREFIXES = [
+  "SHAREPOINT_",
+  "DATABASE_",
+  "STORAGE_",
+  "IMPORT_",
+  "MAX_UPLOAD",
+  "SESSION_",
+  "LOGIN_",
+  "NODE_ENV",
+  "LOCAL_STORAGE_",
+];
 
 function assertKnownApplicationKeys(
   values: Readonly<Record<string, string | undefined>>,
 ): void {
   const unsupported = Object.keys(values).filter(
     (key) =>
-      (key.startsWith("APP_") ||
-        key.startsWith("API_") ||
-        key.startsWith("SHAREPOINT_") ||
-        key.startsWith("DATABASE_") ||
-        key.startsWith("MAX_") ||
-        key.startsWith("NODE_ENV")) &&
+      OWN_PREFIXES.some((prefix) => key.startsWith(prefix)) &&
       !environmentKeys.has(key),
   );
   if (unsupported.length > 0) {
@@ -78,6 +90,16 @@ function assertKnownApplicationKeys(
   }
 }
 
+const SHAREPOINT_GRAPH_KEYS = [
+  "SHAREPOINT_TENANT_ID",
+  "SHAREPOINT_SITE_ID",
+  "SHAREPOINT_DRIVE_ID",
+  "SHAREPOINT_CLIENT_ID",
+  "SHAREPOINT_CLIENT_SECRET",
+  "SHAREPOINT_ROOT_ITEM_ID",
+  "STORAGE_CURSOR_SECRET",
+] as const;
+
 export const apiEnvironmentSchema = z
   .object({
     NODE_ENV: z
@@ -86,7 +108,36 @@ export const apiEnvironmentSchema = z
     APP_ORIGIN: originSchema,
     API_ORIGIN: originSchema,
     API_HOST: z.string().trim().min(1).default("127.0.0.1"),
-    API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    API_PORT: z.coerce.number().int().min(1).max(MAX_PORT).default(3000),
+    DATABASE_URL: postgresUrlSchema,
+    COOKIE_SECURE: booleanEnvironmentValue,
+    SESSION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(MIN_SESSION_SECONDS)
+      .max(MAX_SESSION_SECONDS)
+      .default(DEFAULT_SESSION_SECONDS),
+    // true when a trusted proxy (the HTTPS ingress) forwards the real client address.
+    TRUST_PROXY: booleanEnvironmentValue,
+    // How many sign-in attempts one address may make per minute.
+    LOGIN_ATTEMPTS_PER_MINUTE: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(DEFAULT_LOGIN_ATTEMPTS_PER_MINUTE),
+    MAX_UPLOAD_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_UPLOAD_BYTES_LIMIT)
+      .default(DEFAULT_MAX_UPLOAD_BYTES),
+    STORAGE_MODE: z.enum(["local", "sharepoint"]).default("local"),
+    LOCAL_STORAGE_DIR: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1000)
+      .default("data/storage"),
     SHAREPOINT_MODE: z.enum(["disabled", "graph"]).default("disabled"),
     SHAREPOINT_TENANT_ID: z.string().trim().min(1).optional(),
     SHAREPOINT_SITE_ID: z.string().trim().min(1).optional(),
@@ -95,109 +146,30 @@ export const apiEnvironmentSchema = z
     SHAREPOINT_CLIENT_SECRET: z.string().trim().min(1).optional(),
     SHAREPOINT_ROOT_ITEM_ID: z.string().trim().min(1).optional(),
     STORAGE_CURSOR_SECRET: z.string().trim().min(16).optional(),
-    AUTH_MODE: z.enum(["mock", "entra"]).default("mock"),
-    COOKIE_SECURE: booleanEnvironmentValue,
-    SESSION_SECRET: z
-      .string()
-      .min(MIN_SESSION_SECRET_LENGTH)
-      .default("local-demo-session-secret-change-me-32chars"),
-    SESSION_TTL_SECONDS: z.coerce
-      .number()
-      .int()
-      .min(MIN_SESSION_SECONDS)
-      .max(MAX_SESSION_SECONDS)
-      .default(DEFAULT_SESSION_SECONDS),
-    AUTHORIZED_USERS_JSON: z.string().optional(),
-    ENTRA_TENANT_ID: z.string().min(1).optional(),
-    ENTRA_CLIENT_ID: z.string().min(1).optional(),
-    ENTRA_CLIENT_SECRET: z.string().min(1).optional(),
-    ENTRA_REDIRECT_URI: z
-      .string()
-      .url()
-      .default("http://localhost:4173/auth/callback"),
-    ENTRA_POST_LOGOUT_REDIRECT_URI: z
-      .string()
-      .url()
-      .default("http://localhost:4173/login"),
-    ENTRA_SCOPES: z.string().default("openid profile email"),
-    DATABASE_URL: postgresUrlSchema.optional(),
-    MAX_UPLOAD_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(5_000_000_000)
-      .default(52_428_800),
   })
   .strict()
   .superRefine((environment, context) => {
-    checkAuthentication(environment, context);
-    if (environment.SHAREPOINT_MODE !== "graph") return;
-
-    if (!environment.SHAREPOINT_TENANT_ID) {
-      context.addIssue({
-        code: "custom",
-        path: ["SHAREPOINT_TENANT_ID"],
-        message: "is required when SHAREPOINT_MODE is graph",
-      });
-    }
-    for (const key of [
-      "SHAREPOINT_CLIENT_ID",
-      "SHAREPOINT_CLIENT_SECRET",
-      "SHAREPOINT_ROOT_ITEM_ID",
-      "STORAGE_CURSOR_SECRET",
-    ] as const) {
-      if (!environment[key]) {
-        context.addIssue({
-          code: "custom",
-          path: [key],
-          message: "is required when SHAREPOINT_MODE is graph",
-        });
+    const fail = (path: string, message: string) =>
+      context.addIssue({ code: "custom", path: [path], message });
+    if (environment.NODE_ENV === "production") {
+      if (!environment.COOKIE_SECURE) {
+        fail("COOKIE_SECURE", "COOKIE_SECURE must be true in production.");
       }
     }
-    if (!environment.SHAREPOINT_DRIVE_ID) {
-      context.addIssue({
-        code: "custom",
-        path: ["SHAREPOINT_DRIVE_ID"],
-        message: "is required when SHAREPOINT_MODE is graph",
-      });
+    if (environment.STORAGE_MODE !== "sharepoint") return;
+    if (environment.SHAREPOINT_MODE !== "graph") {
+      fail(
+        "SHAREPOINT_MODE",
+        "SHAREPOINT_MODE must be graph for SharePoint storage.",
+      );
+      return;
+    }
+    for (const key of SHAREPOINT_GRAPH_KEYS) {
+      if (!environment[key]) {
+        fail(key, "is required when SHAREPOINT_MODE is graph");
+      }
     }
   });
-
-function checkAuthentication(
-  environment: {
-    NODE_ENV: string;
-    AUTH_MODE: string;
-    COOKIE_SECURE: boolean;
-    SESSION_SECRET: string;
-    ENTRA_TENANT_ID?: string;
-    ENTRA_CLIENT_ID?: string;
-    ENTRA_CLIENT_SECRET?: string;
-  },
-  context: z.RefinementCtx,
-): void {
-  const fail = (path: string, message: string) =>
-    context.addIssue({ code: "custom", path: [path], message });
-  if (environment.NODE_ENV === "production") {
-    if (!environment.COOKIE_SECURE) {
-      fail("COOKIE_SECURE", "COOKIE_SECURE must be true in production.");
-    }
-    if (environment.SESSION_SECRET.includes("change-me")) {
-      fail("SESSION_SECRET", "SESSION_SECRET must be replaced in production.");
-    }
-    if (environment.AUTH_MODE === "mock") {
-      fail("AUTH_MODE", "Mock sign-in is not allowed in production.");
-    }
-  }
-  if (environment.AUTH_MODE !== "entra") return;
-  for (const key of [
-    "ENTRA_TENANT_ID",
-    "ENTRA_CLIENT_ID",
-    "ENTRA_CLIENT_SECRET",
-  ] as const) {
-    if (!environment[key])
-      fail(key, `${key} is required when AUTH_MODE=entra.`);
-  }
-}
 
 export const productionEnvironmentSchema = apiEnvironmentSchema.superRefine(
   (environment, context) => {
@@ -219,35 +191,32 @@ export function loadApiEnvironment(
   values: Readonly<Record<string, string | undefined>> = process.env,
 ): ApiEnvironment {
   assertKnownApplicationKeys(values);
-  const environment = apiEnvironmentSchema.parse({
-    NODE_ENV: values.NODE_ENV,
-    APP_ORIGIN: values.APP_ORIGIN,
-    API_ORIGIN: values.API_ORIGIN,
-    API_HOST: values.API_HOST,
-    API_PORT: values.API_PORT,
-    SHAREPOINT_MODE: values.SHAREPOINT_MODE,
-    SHAREPOINT_TENANT_ID: values.SHAREPOINT_TENANT_ID,
-    SHAREPOINT_SITE_ID: values.SHAREPOINT_SITE_ID,
-    SHAREPOINT_DRIVE_ID: values.SHAREPOINT_DRIVE_ID,
-    SHAREPOINT_CLIENT_ID: values.SHAREPOINT_CLIENT_ID,
-    SHAREPOINT_CLIENT_SECRET: values.SHAREPOINT_CLIENT_SECRET,
-    SHAREPOINT_ROOT_ITEM_ID: values.SHAREPOINT_ROOT_ITEM_ID,
-    STORAGE_CURSOR_SECRET: values.STORAGE_CURSOR_SECRET,
-    AUTH_MODE: values.AUTH_MODE,
-    COOKIE_SECURE: values.COOKIE_SECURE,
-    SESSION_SECRET: values.SESSION_SECRET,
-    SESSION_TTL_SECONDS: values.SESSION_TTL_SECONDS,
-    AUTHORIZED_USERS_JSON: values.AUTHORIZED_USERS_JSON,
-    ENTRA_TENANT_ID: values.ENTRA_TENANT_ID,
-    ENTRA_CLIENT_ID: values.ENTRA_CLIENT_ID,
-    ENTRA_CLIENT_SECRET: values.ENTRA_CLIENT_SECRET,
-    ENTRA_REDIRECT_URI: values.ENTRA_REDIRECT_URI,
-    ENTRA_POST_LOGOUT_REDIRECT_URI: values.ENTRA_POST_LOGOUT_REDIRECT_URI,
-    ENTRA_SCOPES: values.ENTRA_SCOPES,
-    DATABASE_URL: values.DATABASE_URL,
-    MAX_UPLOAD_BYTES: values.MAX_UPLOAD_BYTES,
-  });
-  return environment.NODE_ENV === "production"
-    ? productionEnvironmentSchema.parse(environment)
-    : environment;
+  const input = Object.fromEntries(
+    Object.keys(apiEnvironmentSchema.shape).map((key) => [key, values[key]]),
+  );
+  input.STORAGE_MODE =
+    values.STORAGE_MODE ??
+    (values.SHAREPOINT_MODE === "graph" ? "sharepoint" : "local");
+  const parsed = apiEnvironmentSchema.safeParse(input);
+  if (!parsed.success) throw new Error(describe(parsed.error));
+  if (
+    parsed.data.NODE_ENV === "production" &&
+    values.STORAGE_MODE === undefined &&
+    values.SHAREPOINT_MODE !== "graph"
+  ) {
+    throw new Error(
+      "Invalid settings: STORAGE_MODE must be set explicitly in production.",
+    );
+  }
+  if (parsed.data.NODE_ENV !== "production") return parsed.data;
+  const production = productionEnvironmentSchema.safeParse(parsed.data);
+  if (!production.success) throw new Error(describe(production.error));
+  return production.data;
+}
+
+function describe(error: z.ZodError): string {
+  const lines = error.issues.map(
+    (issue) => `${issue.path.join(".")}: ${issue.message}`,
+  );
+  return `Invalid settings: ${lines.join("; ")}`;
 }

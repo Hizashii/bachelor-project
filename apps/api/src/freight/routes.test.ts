@@ -1,61 +1,11 @@
 // HTTP-level tests through the whole app: sign-in and CSRF are required, upload to download
 // works for staff, carriers only reach their own tariffs, and rival data stays hidden.
+// Needs TEST_DATABASE_URL (skipped without it).
 
-import { describe, expect, it } from "vitest";
-import { buildApi } from "../app.ts";
-import { InMemoryUserDirectory } from "../auth/directory.ts";
-import { InMemorySessionStore, SESSION_COOKIE } from "../auth/sessions.ts";
-import type { TrustedDirectoryUser } from "../auth/types.ts";
-import { loadApiEnvironment } from "../config/env.ts";
-import { createMemoryStorage } from "../testing/memoryStorage.ts";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createTestApp } from "../testing/testApp.ts";
+import { testDatabaseUrl } from "../testing/testDatabase.ts";
 import { waitFor } from "../testing/waitFor.ts";
-
-const environment = loadApiEnvironment({
-  NODE_ENV: "test",
-  APP_ORIGIN: "http://localhost:4173",
-  API_ORIGIN: "http://localhost:3000",
-  AUTH_MODE: "mock",
-});
-
-const person = (
-  id: string,
-  role: TrustedDirectoryUser["role"],
-  companyId: string | null,
-): TrustedDirectoryUser => ({
-  id,
-  subject: id,
-  tenantId: "test",
-  email: `${id}@example.test`,
-  displayName: id,
-  role,
-  companyId,
-  active: true,
-});
-
-const users = {
-  staff: person("staff", "consultant", null),
-  carrierA: person("carrier-a-user", "carrier", "carrier-blue-fjord"),
-  carrierB: person("carrier-b-user", "carrier", "carrier-northstar"),
-};
-
-async function buildApp() {
-  const sessions = new InMemorySessionStore(environment.SESSION_SECRET);
-  const app = buildApi({
-    environment,
-    storage: createMemoryStorage(),
-    sessions,
-    directory: new InMemoryUserDirectory(Object.values(users)),
-  });
-  const headersFor = async (user: keyof typeof users) => {
-    const { cookieValue, record } = await sessions.create(users[user].id, 600);
-    return {
-      cookie: `${SESSION_COOKIE}=${cookieValue}`,
-      origin: environment.APP_ORIGIN,
-      "x-csrf-token": record.csrfToken,
-    };
-  };
-  return { app, headersFor };
-}
 
 const csv = "Ref;Fra postnr;Til postnr;Vægt (kg)\nS-1;8300;2680;250\n";
 const octet = { "content-type": "application/octet-stream" };
@@ -95,7 +45,37 @@ const tariffBody = (organisationId: string) => ({
   },
 });
 
-describe("freight routes", () => {
+type TestApp = Awaited<ReturnType<typeof createTestApp>>;
+
+describe.skipIf(!testDatabaseUrl)("freight routes", () => {
+  let t: TestApp;
+  let blue: string;
+  let north: string;
+
+  beforeAll(async () => {
+    t = await createTestApp();
+    blue = (await t.accounts.createCarrier("Blue Fjord ApS", "Blue Fjord")).id;
+    north = (await t.accounts.createCarrier("Northstar A/S", "Northstar")).id;
+    await t.addUser({ email: "staff@example.test", role: "consultant" });
+    await t.addUser({ email: "a@blue.test", role: "carrier", carrierId: blue });
+    await t.addUser({
+      email: "b@north.test",
+      role: "carrier",
+      carrierId: north,
+    });
+  });
+  afterAll(() => t.database.end());
+  const emails = {
+    staff: "staff@example.test",
+    carrierA: "a@blue.test",
+    carrierB: "b@north.test",
+  };
+  const buildApp = async () => ({
+    app: t.app,
+    headersFor: async (who: keyof typeof emails) =>
+      (await t.login(emails[who])).headers,
+  });
+
   it("refuses requests without a signed-in user", async () => {
     const { app } = await buildApp();
     const response = await app.inject({ method: "GET", url: "/api/carriers" });
@@ -213,7 +193,7 @@ describe("freight routes", () => {
       method: "PUT",
       url: "/api/tariffs",
       headers: carrierA,
-      payload: tariffBody("carrier-blue-fjord"),
+      payload: tariffBody(blue),
     });
     expect(saved.statusCode).toBe(200);
 
@@ -221,19 +201,19 @@ describe("freight routes", () => {
       method: "PUT",
       url: "/api/tariffs",
       headers: carrierB,
-      payload: tariffBody("carrier-blue-fjord"),
+      payload: tariffBody(blue),
     });
     expect(intoRival.statusCode).toBe(403);
 
     const submit = await app.inject({
       method: "POST",
-      url: "/api/tariffs/carrier-blue-fjord/t-1/1/submit",
+      url: `/api/tariffs/${blue}/t-1/1/submit`,
       headers: carrierA,
     });
     expect(submit.statusCode).toBe(200);
     const selfApprove = await app.inject({
       method: "POST",
-      url: "/api/tariffs/carrier-blue-fjord/t-1/1/approve",
+      url: `/api/tariffs/${blue}/t-1/1/approve`,
       headers: carrierA,
     });
     expect(selfApprove.statusCode).toBe(403);
@@ -241,7 +221,7 @@ describe("freight routes", () => {
     for (const step of ["approve", "activate"]) {
       const response = await app.inject({
         method: "POST",
-        url: `/api/tariffs/carrier-blue-fjord/t-1/1/${step}`,
+        url: `/api/tariffs/${blue}/t-1/1/${step}`,
         headers: staff,
       });
       expect(response.statusCode).toBe(200);
@@ -253,14 +233,14 @@ describe("freight routes", () => {
       headers: staff,
     });
     expect(carriers.json()).toEqual([
-      { organisationId: "carrier-blue-fjord", name: "carrier-blue-fjord" },
+      { organisationId: blue, name: "Blue Fjord" },
     ]);
     const compare = await app.inject({
       method: "POST",
       url: "/api/pricing/compare",
       headers: staff,
       payload: {
-        carriers: [{ organisationId: "carrier-blue-fjord" }],
+        carriers: [{ organisationId: blue }],
         shipment: {
           originPostcode: "8300",
           destinationPostcode: "2680",
@@ -282,7 +262,7 @@ describe("freight routes", () => {
       url: "/api/pricing/compare",
       headers: carrierB,
       payload: {
-        carriers: [{ organisationId: "carrier-blue-fjord" }],
+        carriers: [{ organisationId: blue }],
         shipment: {
           originPostcode: "8300",
           destinationPostcode: "2680",

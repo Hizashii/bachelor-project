@@ -10,7 +10,6 @@ import {
 } from "@freight-desk/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { carrierCompanyIds } from "../auth/directory.ts";
 import type { AccessContext } from "../auth/permissions.ts";
 import { accessContextOf } from "../auth/principal.ts";
 import {
@@ -36,6 +35,8 @@ import {
 import { receiveUpload, UploadTooLargeError } from "./upload.ts";
 
 export type FreightDependencies = {
+  // The carrier companies that exist, with their names, for the comparison screen.
+  listCarriers: () => Promise<{ organisationId: string; name: string }[]>;
   imports: ImportService;
   library: ImportLibrary;
   tariffs: TariffService;
@@ -93,14 +94,14 @@ const STORAGE_MESSAGES: Record<number, string> = {
   403: "You do not have access to that.",
   404: "We could not find that file.",
   409: "Someone else changed this. Reload and try again.",
-  429: "The cloud is busy. Please try again in a moment.",
+  429: "Storage is busy. Please try again in a moment.",
 };
 
 function fail(reply: FastifyReply, error: unknown) {
   if (error instanceof StorageError) {
     const message =
       STORAGE_MESSAGES[error.statusCode] ??
-      "The cloud storage is not available right now.";
+      "Storage is not available right now.";
     return reply.code(error.statusCode).send({ message });
   }
   const match = FRIENDLY.find(([type]) => error instanceof type);
@@ -298,12 +299,20 @@ function registerTariffRoutes(
 
   app.get(
     "/api/carriers",
-    guarded((context) => {
+    guarded(async (context) => {
       if (context.role === "carrier") return [];
-      return tariffs
-        .listCarrierTariffs(context, carrierCompanyIds)
-        .then((items) => [...new Set(items.map((item) => item.organisationId))])
-        .then((ids) => ids.map((id) => ({ organisationId: id, name: id })));
+      const carriers = await deps.listCarriers();
+      const withTariffs = new Set(
+        (
+          await tariffs.listCarrierTariffs(
+            context,
+            carriers.map((carrier) => carrier.organisationId),
+          )
+        ).map((item) => item.organisationId),
+      );
+      return carriers.filter((carrier) =>
+        withTariffs.has(carrier.organisationId),
+      );
     }),
   );
   app.get(
@@ -314,6 +323,10 @@ function registerTariffRoutes(
         .parse(request.params);
       return tariffs.listVersions(context, organisationId, tariffId);
     }),
+  );
+  app.get(
+    "/api/tariffs/mine",
+    guarded((context) => deps.tariffs.latestDraft(context)),
   );
   app.post(
     "/api/tariffs/import",
