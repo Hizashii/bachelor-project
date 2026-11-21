@@ -103,6 +103,7 @@ export class SharePointStorageAdapter implements StorageAdapter {
       ["datasets", "shipments"],
       ["imports", "drafts"],
       ["imports", "mappings"],
+      ["tenders"],
       ["invoice-control"],
       ["exports"],
       ["audits"],
@@ -626,6 +627,7 @@ function destinationFromMetadata(
     if (parts[1] === "invoices") return { kind: "inbound-invoices" };
   }
   if (value === "datasets/shipments") return { kind: "datasets-shipments" };
+  if (value === "tenders") return { kind: "tenders" };
   if (parts.length === 3 && parts[0] === "carriers" && parts[2] === "tariffs") {
     const parsed = storageDestinationSchema.safeParse({
       kind: "carrier-tariffs",

@@ -18,9 +18,15 @@ export type FreightAction =
   | "tariff:submit"
   | "tariff:approve"
   | "tariff:read"
-  | "price:calculate";
+  | "price:calculate"
+  | "tender:read"
+  | "tender:create"
+  | "tender:edit";
 
-export type ResourceRef = { organisationId: string };
+export type ResourceRef = {
+  organisationId: string;
+  invitedCarrierCompanyIds?: readonly string[];
+};
 
 export interface PermissionChecker {
   can(
@@ -34,12 +40,19 @@ const CARRIER_ACTIONS: readonly FreightAction[] = [
   "tariff:edit",
   "tariff:submit",
   "tariff:read",
+  "tender:read",
 ];
 
 export const permissions: PermissionChecker = {
   can(context, action, resource) {
     if (!context.organisationId) return false;
     if (context.role === "carrier") {
+      if (action === "tender:read") {
+        return (
+          resource.invitedCarrierCompanyIds?.includes(context.organisationId) ??
+          false
+        );
+      }
       return (
         context.organisationId === resource.organisationId &&
         CARRIER_ACTIONS.includes(action)

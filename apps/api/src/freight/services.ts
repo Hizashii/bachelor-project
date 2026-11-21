@@ -7,6 +7,7 @@ import { Documents } from "../storage/documents.ts";
 import type { StorageAdapter } from "../storage/types.ts";
 import { PricingService } from "../tariffs/pricing.ts";
 import { TariffService } from "../tariffs/service.ts";
+import { TenderService } from "../tenders/service.ts";
 import type { FreightDependencies } from "./routes.ts";
 
 export function createFreightServices(
@@ -16,11 +17,13 @@ export function createFreightServices(
   const documents = new Documents(storage);
   const imports = new ImportService({ documents, permissions });
   const tariffs = new TariffService({ documents, permissions });
+  const tenders = new TenderService({ documents, permissions });
   return {
     listCarriers,
     imports,
     library: new ImportLibrary(imports, documents),
     tariffs,
+    tenders,
     pricing: new PricingService({ tariffs, permissions }),
   };
 }
