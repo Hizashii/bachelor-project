@@ -20,7 +20,7 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const copy = getCopy(locale);
-  const homePath = user.role === "carrier" ? "/carriers" : "/compare";
+  const homePath = "/tenders";
 
   return (
     <div className="app-shell">
@@ -78,24 +78,26 @@ function PrimaryNav({
 }) {
   return (
     <nav className="primary-nav" aria-label="Primary navigation">
-      <span className="nav-link nav-link-muted">{copy.overview}</span>
+      <NavLink className="nav-link" to="/tenders">
+        {copy.tenders}
+      </NavLink>
       {role !== "carrier" ? (
         <NavLink className="nav-link" to="/upload">
           {copy.upload}
         </NavLink>
       ) : null}
-      <NavLink className="nav-link" to="/files">
-        {copy.files}
-      </NavLink>
+      {role !== "carrier" ? (
+        <NavLink className="nav-link" to="/files">
+          {copy.files}
+        </NavLink>
+      ) : null}
       {role !== "carrier" ? (
         <NavLink className="nav-link" to="/compare">
           {copy.compare}
         </NavLink>
       ) : null}
-      <span className="nav-link nav-link-muted">{copy.invoices}</span>
-      <span className="nav-link nav-link-muted">{copy.calculator}</span>
       <NavLink className="nav-link" to="/carriers">
-        {copy.carriers}
+        {role === "carrier" ? copy.carrierPortal : copy.carriers}
       </NavLink>
     </nav>
   );

@@ -10,6 +10,7 @@ import { AppShell } from "./components/AppShell";
 import { CarrierPortal } from "./features/carriers/CarrierPortal";
 import { CompareOffers } from "./features/compare/CompareOffers";
 import { FileManagement } from "./features/files/FileManagement";
+import { TenderLanding } from "./features/tenders/TenderLanding";
 import { UploadScreen } from "./features/upload/UploadScreen";
 import type { Locale } from "./i18n";
 
@@ -40,6 +41,10 @@ export function App(): ReactElement {
     >
       <Routes>
         <Route
+          path="/tenders"
+          element={<TenderLanding locale={locale} role={auth.user.role} />}
+        />
+        <Route
           path="/compare"
           element={
             <RoleRoute
@@ -62,8 +67,18 @@ export function App(): ReactElement {
           }
         />
         <Route path="/carriers" element={<CarrierPortal locale={locale} />} />
-        <Route path="/files" element={<FileManagement locale={locale} />} />
-        <Route path="*" element={<Navigate to="/compare" replace />} />
+        <Route
+          path="/files"
+          element={
+            <RoleRoute
+              userRole={auth.user.role}
+              allowedRoles={["consultant", "master"]}
+            >
+              <FileManagement locale={locale} />
+            </RoleRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/tenders" replace />} />
       </Routes>
     </AppShell>
   );
@@ -81,7 +96,7 @@ function RoleRoute({
   return allowedRoles.includes(userRole) ? (
     children
   ) : (
-    <Navigate to="/carriers" replace />
+    <Navigate to="/tenders" replace />
   );
 }
 

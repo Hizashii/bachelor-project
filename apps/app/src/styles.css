@@ -168,9 +168,6 @@ a {
   border-bottom-color: #d7a546;
   color: #e0b45d;
 }
-.nav-link-muted {
-  opacity: 0.42;
-}
 .language-switch {
   align-items: center;
   border: 1px solid rgb(255 255 255 / 30%);
@@ -232,6 +229,63 @@ h1 {
   color: #4f6276;
   font-size: 1.02rem;
   margin-bottom: 0;
+}
+
+.tenders-screen {
+  max-width: 1080px;
+}
+
+.tender-empty-state {
+  align-items: start;
+  background: #fff;
+  border: 1px solid #d4d0c9;
+  border-radius: 6px;
+  display: grid;
+  gap: 1.4rem;
+  grid-template-columns: 0.2rem minmax(0, 1fr);
+  margin-top: 2.5rem;
+  padding: 2.2rem 2rem;
+}
+
+.empty-state-marker {
+  background: #d7a546;
+  border-radius: 999px;
+  height: 100%;
+  min-height: 7rem;
+  width: 0.2rem;
+}
+
+.tender-empty-state h2,
+.tender-support h2 {
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  margin-bottom: 0.65rem;
+}
+
+.tender-empty-state p:last-child,
+.tender-support p:last-child {
+  color: #4f6276;
+  line-height: 1.55;
+  margin-bottom: 0;
+  max-width: 62ch;
+}
+
+.tender-support {
+  align-items: end;
+  border-top: 1px solid #d4d0c9;
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  margin-top: 3rem;
+  padding-top: 1.6rem;
+}
+
+.tender-support-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: flex-end;
 }
 
 .shipment-summary {
@@ -979,6 +1033,16 @@ h1 {
   }
   .comparison-notes {
     grid-template-columns: 1fr;
+  }
+  .tender-empty-state {
+    padding: 1.5rem;
+  }
+  .tender-support {
+    align-items: start;
+    flex-direction: column;
+  }
+  .tender-support-links {
+    justify-content: flex-start;
   }
   .portal-screen {
     padding-inline: 1.25rem;

@@ -31,6 +31,53 @@ test.beforeEach(async ({ page }) => {
   await logIn(page, "staff@example.test");
 });
 
+test("staff lands on the empty tender workspace", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page).toHaveURL(/\/tenders$/);
+  await expect(
+    page.getByRole("heading", { name: "Udbud og tilbud" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Der er ingen udbud endnu" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page).toHaveURL(/\/tenders$/);
+  await expect(
+    page.getByRole("heading", { name: "Der er ingen udbud endnu" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Udbud" })).toBeVisible();
+  await expect(page.getByText("Overblik")).toHaveCount(0);
+  await expect(page.getByText("Fakturakontrol")).toHaveCount(0);
+  await expect(page.getByText("Prisberegner")).toHaveCount(0);
+});
+
+test("carrier sees invited tenders and cannot open staff tools", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await logIn(page, "dana@bluefjord.test");
+  await page.goto("/");
+
+  await expect(page).toHaveURL(/\/tenders$/);
+  await expect(
+    page.getByRole("heading", { name: "Inviterede udbud", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Du har ingen inviterede udbud" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Upload" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Sammenlign" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Filer" })).toHaveCount(0);
+
+  await page.goto("/compare");
+  await expect(page).toHaveURL(/\/tenders$/);
+
+  await page.goto("/files");
+  await expect(page).toHaveURL(/\/tenders$/);
+});
+
 test("upload: map columns, process, see issues and download", async ({
   page,
 }) => {
