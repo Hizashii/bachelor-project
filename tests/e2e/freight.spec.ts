@@ -52,6 +52,34 @@ test("staff lands on the empty tender workspace", async ({ page }) => {
   await expect(page.getByText("Prisberegner")).toHaveCount(0);
 });
 
+test("workspace stays usable at desktop, tablet and mobile widths", async ({
+  page,
+}) => {
+  const routes = ["/tenders", "/upload", "/compare", "/files", "/carriers"];
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 1024, height: 768 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const route of routes) {
+      await page.goto(route);
+      await expect(page.locator("main")).toBeVisible();
+      const width = await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+      );
+      expect(width, `${route} overflows at ${viewport.width}px`).toBe(true);
+    }
+  }
+
+  await page.keyboard.press("Tab");
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement?.tagName))
+    .not.toBe("BODY");
+});
+
 test("carrier sees invited tenders and cannot open staff tools", async ({
   page,
 }) => {

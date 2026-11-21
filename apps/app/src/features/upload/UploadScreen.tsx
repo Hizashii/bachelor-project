@@ -1,9 +1,11 @@
 import type { ReactElement } from "react";
+import { ActionBar, PageHeader } from "../../components/OperationalUI";
 import { type Copy, getCopy, type Locale } from "../../i18n";
 import { FailedPanel, ProgressPanel, ResultPanel } from "./JobPanels";
 import { MappingTable } from "./MappingTable";
 import { useImportJob } from "./useImportJob";
 import { useImportSession } from "./useImportSession";
+import "../operational.css";
 
 type FileEvent = { currentTarget: { files: FileList | null } };
 type DropEvent = {
@@ -22,10 +24,7 @@ export function UploadScreen({ locale }: { locale: Locale }): ReactElement {
 
   return (
     <div className="screen upload-screen">
-      <section className="page-heading">
-        <h1>{copy.uploadHeading}</h1>
-        <p className="lede">{copy.uploadIntro}</p>
-      </section>
+      <PageHeader title={copy.uploadHeading} description={copy.uploadIntro} />
       {session.error || flow.error ? (
         <p className="upload-error" role="alert">
           {session.error ?? flow.error}
@@ -87,9 +86,6 @@ function FileChooser({
       }}
     >
       <legend className="sr-only">{copy.chooseFile}</legend>
-      <label className="button button-primary" htmlFor="shipment-file">
-        {busy ? copy.uploading : copy.chooseFile}
-      </label>
       <input
         id="shipment-file"
         className="file-input"
@@ -97,6 +93,12 @@ function FileChooser({
         accept=".xlsx,.csv"
         onChange={(event: FileEvent) => pick(event.currentTarget.files)}
       />
+      <label
+        className="button button-primary file-input-label"
+        htmlFor="shipment-file"
+      >
+        {busy ? copy.uploading : copy.chooseFile}
+      </label>
       <span>{copy.dropHint}</span>
     </fieldset>
   );
@@ -162,7 +164,7 @@ function MappingStep({ copy, session, flow }: StepProps) {
             </div>
           ))}
       </div>
-      <div className="upload-actions">
+      <ActionBar>
         <button
           className="button button-secondary"
           type="button"
@@ -193,8 +195,8 @@ function MappingStep({ copy, session, flow }: StepProps) {
         >
           {copy.startProcessing}
         </button>
-      </div>
-      <div className="upload-actions">
+      </ActionBar>
+      <ActionBar>
         <button
           className="button button-secondary"
           type="button"
@@ -211,7 +213,7 @@ function MappingStep({ copy, session, flow }: StepProps) {
         >
           {copy.rememberSetup}
         </button>
-      </div>
+      </ActionBar>
       {session.library.draftState === "saved" ? (
         <p className="saved-message" role="status">
           ✓ {copy.draftSaved}
@@ -250,7 +252,7 @@ function DraftList({ copy, library }: DraftListProps) {
       <h2>{copy.openDrafts}</h2>
       <div className="white-card upload-panel">
         {library.drafts.map((draft) => (
-          <div className="upload-actions" key={draft.draftId}>
+          <ActionBar key={draft.draftId}>
             <span>
               {draft.originalName} ·{" "}
               {new Date(draft.savedAt).toLocaleString("da-DK")}
@@ -269,7 +271,7 @@ function DraftList({ copy, library }: DraftListProps) {
             >
               {copy.discardDraft}
             </button>
-          </div>
+          </ActionBar>
         ))}
       </div>
     </section>

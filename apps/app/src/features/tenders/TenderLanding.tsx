@@ -2,8 +2,10 @@
 
 import { NavLink } from "react-router";
 import type { UserRole } from "../../auth/auth";
+import { EmptyState, PageHeader } from "../../components/OperationalUI";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import "../operational.css";
 
 type TenderLandingProps = { locale: Locale; role: UserRole };
 
@@ -13,13 +15,12 @@ export function TenderLanding({ locale, role }: TenderLandingProps) {
 
   return (
     <div className="screen tenders-screen">
-      <section className="page-heading">
-        <p className="eyebrow">{copy.tendersEyebrow}</p>
-        <h1>{carrier ? copy.invitedTendersTitle : copy.tendersTitle}</h1>
-        <p className="lede">
-          {carrier ? copy.invitedTendersSubtitle : copy.tendersSubtitle}
-        </p>
-      </section>
+      <PageHeader
+        title={carrier ? copy.invitedTendersTitle : copy.tendersTitle}
+        description={
+          carrier ? copy.invitedTendersSubtitle : copy.tendersSubtitle
+        }
+      />
       <EmptyTenderState copy={copy} carrier={carrier} />
       {!carrier ? <SupportingTools copy={copy} /> : null}
     </div>
@@ -34,18 +35,13 @@ function EmptyTenderState({
   carrier: boolean;
 }) {
   return (
-    <section className="tender-empty-state" aria-labelledby="tenders-empty-title">
-      <span className="empty-state-marker" aria-hidden="true" />
-      <div>
-        <p className="eyebrow">{copy.tendersEmptyEyebrow}</p>
-        <h2 id="tenders-empty-title">
-          {carrier ? copy.invitedTendersEmptyTitle : copy.tendersEmptyTitle}
-        </h2>
-        <p>
-          {carrier ? copy.invitedTendersEmptyText : copy.tendersEmptyText}
-        </p>
-      </div>
-    </section>
+    <EmptyState
+      title={carrier ? copy.invitedTendersEmptyTitle : copy.tendersEmptyTitle}
+      description={
+        carrier ? copy.invitedTendersEmptyText : copy.tendersEmptyText
+      }
+      labelledBy="tenders-empty-title"
+    />
   );
 }
 
@@ -53,11 +49,13 @@ function SupportingTools({ copy }: { copy: ReturnType<typeof getCopy> }) {
   return (
     <section className="tender-support" aria-labelledby="tender-support-title">
       <div>
-        <p className="eyebrow">{copy.tenderSupportEyebrow}</p>
         <h2 id="tender-support-title">{copy.tenderSupportTitle}</h2>
         <p>{copy.tenderSupportText}</p>
       </div>
-      <nav className="tender-support-links" aria-label={copy.tenderSupportTitle}>
+      <nav
+        className="tender-support-links"
+        aria-label={copy.tenderSupportTitle}
+      >
         <NavLink className="button button-secondary" to="/upload">
           {copy.upload}
         </NavLink>

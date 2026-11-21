@@ -5,6 +5,7 @@ import {
   type Tariff,
 } from "@freight-desk/shared";
 import { useMemo, useState } from "react";
+import { Field } from "../../components/OperationalUI";
 import type { Copy } from "../../i18n";
 
 type InputChange = { currentTarget: HTMLInputElement };
@@ -66,16 +67,16 @@ export function SampleCalculator({
     [tariff, input],
   );
   const field = (name: keyof Inputs, label: string) => (
-    <label className="terms-field">
-      <span>{label}</span>
+    <Field label={label} htmlFor={`sample-${name}`}>
       <input
+        id={`sample-${name}`}
         value={input[name]}
         inputMode="decimal"
         onChange={(event: InputChange) =>
           setInput({ ...input, [name]: event.currentTarget.value })
         }
       />
-    </label>
+    </Field>
   );
 
   return (

@@ -1,4 +1,5 @@
 import { formatMoney, type PriceFailure } from "@freight-desk/shared";
+import { StatusBadge, TableFrame } from "../../components/OperationalUI";
 import type { Copy } from "../../i18n";
 import type { CarrierPrice, ComparableCarrier } from "./compareApi";
 import type { DeliveryReliability } from "./reliability";
@@ -51,7 +52,7 @@ export function OfferTable({
 }: OfferTableProps) {
   const cheapest = cheapestTotal(lines);
   return (
-    <section className="offer-table-wrap" aria-label="Carrier offers">
+    <TableFrame ariaLabel={copy.carrier}>
       <div className="offer-table-header offer-row">
         <span>{copy.carrier}</span>
         <span>{copy.price}</span>
@@ -72,7 +73,7 @@ export function OfferTable({
             <div className="carrier-name">
               <strong>{line.carrier.name}</strong>
               {isCheapest ? (
-                <span className="badge badge-teal">{copy.cheapest}</span>
+                <StatusBadge tone="success">{copy.cheapest}</StatusBadge>
               ) : null}
             </div>
             <div className="price-cell">
@@ -95,6 +96,6 @@ export function OfferTable({
           </div>
         );
       })}
-    </section>
+    </TableFrame>
   );
 }

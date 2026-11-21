@@ -1,5 +1,6 @@
 import type { PricingMethod } from "@freight-desk/shared";
 import { useAuth } from "../../auth/auth";
+import { ActionBar, PageHeader } from "../../components/OperationalUI";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 import { PriceStep } from "./PriceStep";
@@ -10,6 +11,7 @@ import { TariffTerms } from "./TariffTerms";
 import { applyImport } from "./tariffDraft.ts";
 import { type SaveStatus, useTariffEditor } from "./useTariffEditor";
 import { ZoneStep } from "./ZoneStep";
+import "../operational.css";
 
 type CarrierPortalProps = { locale: Locale };
 
@@ -42,11 +44,10 @@ export function CarrierPortal({ locale }: CarrierPortalProps) {
 
   return (
     <div className="portal-screen">
-      <section className="page-heading portal-heading">
-        <p className="eyebrow">{copy.portalEyebrow}</p>
-        <h1>{copy.portalTitleHeading}</h1>
-        <p className="portal-subtitle">{copy.portalSubtitle}</p>
-      </section>
+      <PageHeader
+        title={copy.portalTitleHeading}
+        description={copy.portalSubtitle}
+      />
       <TariffImport
         copy={copy}
         fileName={editor.state.sourceFile}
@@ -132,7 +133,7 @@ function PortalFooter({
 }: PortalFooterProps) {
   const busy = status === "saving";
   return (
-    <div className="portal-footer">
+    <ActionBar className="portal-footer">
       {!signedIn ? (
         <span className="upload-error">{copy.signInNeeded}</span>
       ) : null}
@@ -166,6 +167,6 @@ function PortalFooter({
       >
         {copy.submitForApproval}
       </button>
-    </div>
+    </ActionBar>
   );
 }

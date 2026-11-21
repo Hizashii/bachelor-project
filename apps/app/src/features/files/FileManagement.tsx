@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { csrfHeader } from "../../api/client";
+import {
+  EmptyState,
+  PageHeader,
+  StatusBadge,
+  TableFrame,
+} from "../../components/OperationalUI";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import "../operational.css";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
 const DESTINATION = "inbound/shipments";
@@ -172,11 +179,7 @@ export function FileManagement({ locale }: FileManagementProps) {
 
   return (
     <div className="screen files-screen">
-      <section className="page-heading">
-        <p className="eyebrow">{copy.filesEyebrow}</p>
-        <h1>{copy.filesTitle}</h1>
-        <p className="lede">{copy.filesSubtitle}</p>
-      </section>
+      <PageHeader title={copy.filesTitle} description={copy.filesSubtitle} />
 
       <section className="cloud-upload white-card">
         <div>
@@ -185,9 +188,6 @@ export function FileManagement({ locale }: FileManagementProps) {
           <p>{file ? file.name : copy.fileSelectionDetail}</p>
         </div>
         <div className="cloud-upload-actions">
-          <label className="button button-secondary" htmlFor="freight-file">
-            {copy.selectFile}
-          </label>
           <input
             id="freight-file"
             className="file-input"
@@ -196,6 +196,12 @@ export function FileManagement({ locale }: FileManagementProps) {
               setFile(event.currentTarget.files?.[0] ?? null)
             }
           />
+          <label
+            className="button button-secondary file-input-label"
+            htmlFor="freight-file"
+          >
+            {copy.selectFile}
+          </label>
           <button
             className="button button-primary"
             type="button"
@@ -220,8 +226,7 @@ export function FileManagement({ locale }: FileManagementProps) {
       >
         <div className="file-list-heading">
           <div>
-            <p className="field-label">{copy.companyCloud}</p>
-            <h2>{copy.shipmentFiles}</h2>
+            <h2 id="shipment-files-title">{copy.shipmentFiles}</h2>
           </div>
           <button
             className="text-link"
@@ -231,12 +236,20 @@ export function FileManagement({ locale }: FileManagementProps) {
             {copy.refresh}
           </button>
         </div>
-        {loading ? <p className="file-empty">{copy.loading}</p> : null}
+        {loading ? (
+          <p className="file-loading" role="status">
+            {copy.loading}
+          </p>
+        ) : null}
         {!loading && files.length === 0 ? (
-          <p className="file-empty">{copy.noFiles}</p>
+          <EmptyState
+            title={copy.noFiles}
+            description={copy.fileSelectionDetail}
+            labelledBy="files-empty-title"
+          />
         ) : null}
         {!loading && files.length > 0 ? (
-          <div className="file-table-wrap">
+          <TableFrame labelledBy="shipment-files-title">
             <div className="file-table file-table-header">
               <span>{copy.fileName}</span>
               <span>{copy.fileType}</span>
@@ -256,7 +269,9 @@ export function FileManagement({ locale }: FileManagementProps) {
                   ).format(new Date(item.uploadedAt))}
                 </span>
                 <span className="file-status">
-                  {statusLabel(item.processingStatus, copy)}
+                  <StatusBadge tone={statusTone(item.processingStatus)}>
+                    {statusLabel(item.processingStatus, copy)}
+                  </StatusBadge>
                 </span>
                 <span className="file-actions">
                   <button type="button" onClick={() => void download(item)}>
@@ -275,7 +290,7 @@ export function FileManagement({ locale }: FileManagementProps) {
                 </span>
               </div>
             ))}
-          </div>
+          </TableFrame>
         ) : null}
       </section>
 
@@ -283,7 +298,6 @@ export function FileManagement({ locale }: FileManagementProps) {
         <section className="file-details white-card" aria-label={copy.details}>
           <div className="file-list-heading">
             <div>
-              <p className="field-label">{copy.details}</p>
               <h2>{selectedFile.name}</h2>
             </div>
             <button
@@ -313,7 +327,11 @@ export function FileManagement({ locale }: FileManagementProps) {
             </div>
             <div>
               <dt>{copy.status}</dt>
-              <dd>{statusLabel(selectedFile.processingStatus, copy)}</dd>
+              <dd>
+                <StatusBadge tone={statusTone(selectedFile.processingStatus)}>
+                  {statusLabel(selectedFile.processingStatus, copy)}
+                </StatusBadge>
+              </dd>
             </div>
           </dl>
         </section>
@@ -380,4 +398,13 @@ function statusLabel(
   if (status === "processing") return copy.processing;
   if (status === "failed") return copy.failed;
   return copy.pending;
+}
+
+function statusTone(
+  status: StoredFile["processingStatus"],
+): "neutral" | "success" | "warning" | "danger" {
+  if (status === "processed") return "success";
+  if (status === "failed") return "danger";
+  if (status === "processing") return "warning";
+  return "neutral";
 }

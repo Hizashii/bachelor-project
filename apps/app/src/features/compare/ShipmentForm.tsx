@@ -1,5 +1,6 @@
 import type { PriceShipment } from "@freight-desk/shared";
 import { useState } from "react";
+import { ActionBar, Field } from "../../components/OperationalUI";
 import type { Copy } from "../../i18n";
 
 type InputChange = { currentTarget: HTMLInputElement };
@@ -39,9 +40,9 @@ export function ShipmentForm({ copy, busy, onCompare }: ShipmentFormProps) {
     cbm: "",
   });
   const field = (name: keyof Fields, label: string, type = "text") => (
-    <label className="terms-field">
-      <span>{label}</span>
+    <Field label={label} htmlFor={`shipment-${name}`}>
       <input
+        id={`shipment-${name}`}
         type={type}
         value={fields[name]}
         inputMode={type === "text" ? "decimal" : undefined}
@@ -49,7 +50,7 @@ export function ShipmentForm({ copy, busy, onCompare }: ShipmentFormProps) {
           setFields({ ...fields, [name]: event.currentTarget.value })
         }
       />
-    </label>
+    </Field>
   );
 
   return (
@@ -67,24 +68,26 @@ export function ShipmentForm({ copy, busy, onCompare }: ShipmentFormProps) {
         {field("ldm", copy.calcLdm)}
         {field("cbm", copy.calcCbm)}
       </div>
-      <button
-        className="button button-primary"
-        type="button"
-        disabled={busy}
-        onClick={() =>
-          onCompare({
-            originPostcode: fields.origin.trim() || null,
-            destinationPostcode: fields.destination.trim() || null,
-            date: fields.date,
-            weightKg: toNumber(fields.weight),
-            pallets: toNumber(fields.pallets),
-            loadingMeters: toNumber(fields.ldm),
-            cubicMeters: toNumber(fields.cbm),
-          })
-        }
-      >
-        {busy ? copy.comparing : copy.runComparison}
-      </button>
+      <ActionBar>
+        <button
+          className="button button-primary"
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            onCompare({
+              originPostcode: fields.origin.trim() || null,
+              destinationPostcode: fields.destination.trim() || null,
+              date: fields.date,
+              weightKg: toNumber(fields.weight),
+              pallets: toNumber(fields.pallets),
+              loadingMeters: toNumber(fields.ldm),
+              cubicMeters: toNumber(fields.cbm),
+            })
+          }
+        >
+          {busy ? copy.comparing : copy.runComparison}
+        </button>
+      </ActionBar>
     </section>
   );
 }

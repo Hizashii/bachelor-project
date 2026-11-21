@@ -77,9 +77,6 @@ export function TariffImport({
           </div>
         ) : null}
       </div>
-      <label className="button button-secondary" htmlFor="carrier-excel">
-        {copy.uploadExcel}
-      </label>
       <input
         id="carrier-excel"
         className="file-input"
@@ -90,6 +87,12 @@ export function TariffImport({
           if (file) void read(file);
         }}
       />
+      <label
+        className="button button-secondary file-input-label"
+        htmlFor="carrier-excel"
+      >
+        {copy.uploadExcel}
+      </label>
     </section>
   );
 }

@@ -1,10 +1,12 @@
 import { formatMoney } from "@freight-desk/shared";
 import { useState } from "react";
+import { PageHeader } from "../../components/OperationalUI";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 import { cheapestTotal, OfferTable } from "./OfferTable";
 import { ShipmentForm } from "./ShipmentForm";
 import { useComparison } from "./useComparison";
+import "../operational.css";
 
 type CompareOffersProps = { locale: Locale };
 
@@ -19,11 +21,10 @@ export function CompareOffers({ locale }: CompareOffersProps) {
 
   return (
     <div className="screen compare-screen">
-      <section className="page-heading">
-        <p className="eyebrow">{copy.compareEyebrow}</p>
-        <h1>{copy.compareTitle}</h1>
-        <p className="lede">{copy.compareSubtitle}</p>
-      </section>
+      <PageHeader
+        title={copy.compareTitle}
+        description={copy.compareSubtitle}
+      />
       <ShipmentForm
         copy={copy}
         busy={comparison.busy}
@@ -84,7 +85,6 @@ function Recommendation({
   return (
     <section className="recommendation-card">
       <div>
-        <p className="eyebrow eyebrow-light">{copy.recommendation}</p>
         <h2>
           {copy.cheapestOffer
             .replace("{carrier}", best.carrier.name)

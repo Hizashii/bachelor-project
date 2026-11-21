@@ -77,7 +77,7 @@ function PrimaryNav({
   role: SafeUserProfile["role"];
 }) {
   return (
-    <nav className="primary-nav" aria-label="Primary navigation">
+    <nav className="primary-nav" aria-label={copy.primaryNavigation}>
       <NavLink className="nav-link" to="/tenders">
         {copy.tenders}
       </NavLink>

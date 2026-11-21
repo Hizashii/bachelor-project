@@ -3,20 +3,25 @@ export type Locale = "da" | "en";
 const localeCopy = {
   da: {
     language: "Sprog",
+    primaryNavigation: "Primær navigation",
     tenders: "Udbud",
     tendersEyebrow: "Udbud",
     tendersTitle: "Udbud og tilbud",
     tendersSubtitle: "Her samler vi kommende og afsluttede transportudbud.",
     invitedTendersTitle: "Inviterede udbud",
-    invitedTendersSubtitle: "Her finder du de udbud, din virksomhed er inviteret til.",
+    invitedTendersSubtitle:
+      "Her finder du de udbud, din virksomhed er inviteret til.",
     tendersEmptyEyebrow: "Ingen poster endnu",
     tendersEmptyTitle: "Der er ingen udbud endnu",
-    tendersEmptyText: "Udbud vises her, når de er oprettet og klar til behandling.",
+    tendersEmptyText:
+      "Udbud vises her, når de er oprettet og klar til behandling.",
     invitedTendersEmptyTitle: "Du har ingen inviterede udbud",
-    invitedTendersEmptyText: "Vi viser et udbud her, når din virksomhed bliver inviteret.",
+    invitedTendersEmptyText:
+      "Vi viser et udbud her, når din virksomhed bliver inviteret.",
     tenderSupportEyebrow: "Tilgængelige værktøjer",
     tenderSupportTitle: "Arbejd videre i de nuværende værktøjer",
-    tenderSupportText: "Udbudsoprettelse er ikke tilgængelig endnu. Dine eksisterende værktøjer er stadig her.",
+    tenderSupportText:
+      "Udbudsoprettelse er ikke tilgængelig endnu. Dine eksisterende værktøjer er stadig her.",
     upload: "Upload",
     files: "Filer",
     filesEyebrow: "Filer i virksomhedens lagring",
@@ -235,20 +240,25 @@ const localeCopy = {
   },
   en: {
     language: "Language",
+    primaryNavigation: "Primary navigation",
     tenders: "Tenders",
     tendersEyebrow: "Tenders",
     tendersTitle: "Tenders and offers",
     tendersSubtitle: "Upcoming and completed transport tenders will live here.",
     invitedTendersTitle: "Invited tenders",
-    invitedTendersSubtitle: "This is where you will find tenders your company is invited to.",
+    invitedTendersSubtitle:
+      "This is where you will find tenders your company is invited to.",
     tendersEmptyEyebrow: "No records yet",
     tendersEmptyTitle: "There are no tenders yet",
-    tendersEmptyText: "Tenders will appear here when they have been created and are ready to work on.",
+    tendersEmptyText:
+      "Tenders will appear here when they have been created and are ready to work on.",
     invitedTendersEmptyTitle: "You have no invited tenders",
-    invitedTendersEmptyText: "A tender will appear here when your company is invited.",
+    invitedTendersEmptyText:
+      "A tender will appear here when your company is invited.",
     tenderSupportEyebrow: "Available tools",
     tenderSupportTitle: "Continue with the current tools",
-    tenderSupportText: "Tender creation is not available yet. Your existing tools are still here.",
+    tenderSupportText:
+      "Tender creation is not available yet. Your existing tools are still here.",
     upload: "Upload",
     files: "Files",
     filesEyebrow: "Files in company storage",
