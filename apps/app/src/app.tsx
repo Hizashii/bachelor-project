@@ -1,5 +1,5 @@
 import { type ReactElement, useState } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useParams } from "react-router";
 import {
   AcceptInvitationScreen,
   LoginScreen,
@@ -10,13 +10,32 @@ import { AppShell } from "./components/AppShell";
 import { CarrierPortal } from "./features/carriers/CarrierPortal";
 import { CompareOffers } from "./features/compare/CompareOffers";
 import { FileManagement } from "./features/files/FileManagement";
+import { TenderForm } from "./features/tenders/TenderForm";
 import { TenderLanding } from "./features/tenders/TenderLanding";
+import { TenderOverview } from "./features/tenders/TenderOverview";
 import { UploadScreen } from "./features/upload/UploadScreen";
 import type { Locale } from "./i18n";
+import { PublicLanding } from "./PublicLanding";
 
 export function App(): ReactElement {
   const auth = useAuth();
   const [locale, setLocale] = useState<Locale>("da");
+  const path = window.location.pathname;
+  const isPublicEntry = ![
+    "/login",
+    "/accept-invitation",
+    "/reset-password",
+  ].includes(path);
+
+  if (isPublicEntry && auth.status !== "authenticated" && !auth.user) {
+    return (
+      <PublicLanding
+        locale={locale}
+        onLocaleChange={setLocale}
+        authUnavailable={auth.status === "error"}
+      />
+    );
+  }
 
   if (auth.status === "loading") {
     return (
@@ -24,13 +43,14 @@ export function App(): ReactElement {
     );
   }
   if (auth.status === "error") {
+    if (path === "/login") return <LoginScreen />;
     return (
       <div className="auth-loading-screen">
         {auth.error ?? "Authentication is unavailable."}
       </div>
     );
   }
-  if (!auth.user) return signedOutScreen(window.location.pathname);
+  if (!auth.user) return signedOutScreen(path, locale, setLocale);
 
   return (
     <AppShell
@@ -43,6 +63,32 @@ export function App(): ReactElement {
         <Route
           path="/tenders"
           element={<TenderLanding locale={locale} role={auth.user.role} />}
+        />
+        <Route
+          path="/tenders/new"
+          element={
+            <RoleRoute
+              userRole={auth.user.role}
+              allowedRoles={["consultant", "master"]}
+            >
+              <TenderForm locale={locale} />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/tenders/:id/edit"
+          element={
+            <RoleRoute
+              userRole={auth.user.role}
+              allowedRoles={["consultant", "master"]}
+            >
+              <TenderEditRoute locale={locale} />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/tenders/:id"
+          element={<TenderOverview locale={locale} role={auth.user.role} />}
         />
         <Route
           path="/compare"
@@ -100,8 +146,18 @@ function RoleRoute({
   );
 }
 
-function signedOutScreen(path: string): ReactElement {
+function TenderEditRoute({ locale }: { locale: Locale }) {
+  const { id } = useParams();
+  return <TenderForm locale={locale} tenderId={id} />;
+}
+
+function signedOutScreen(
+  path: string,
+  locale: Locale,
+  onLocaleChange: (locale: Locale) => void,
+): ReactElement {
   if (path === "/accept-invitation") return <AcceptInvitationScreen />;
   if (path === "/reset-password") return <ResetPasswordScreen />;
-  return <LoginScreen />;
+  if (path === "/login") return <LoginScreen />;
+  return <PublicLanding locale={locale} onLocaleChange={onLocaleChange} />;
 }

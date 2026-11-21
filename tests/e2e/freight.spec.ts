@@ -52,6 +52,32 @@ test("staff lands on the empty tender workspace", async ({ page }) => {
   await expect(page.getByText("Prisberegner")).toHaveCount(0);
 });
 
+test("staff creates, refreshes and edits a tender draft", async ({ page }) => {
+  await page.goto("/tenders");
+  await page.getByRole("link", { name: "Opret udbud" }).click();
+  await page.getByLabel("Navn pÃ¥ udbud").fill("Jylland 2027");
+  await page.getByLabel("Kundereference").fill("SA-2027-01");
+  await page.getByLabel("Visningstidszone").fill("Europe/Copenhagen");
+  await page.getByLabel("Valuta").selectOption("DKK");
+  await page.getByRole("button", { name: "Gem kladde" }).click();
+
+  await expect(page).toHaveURL(/\/tenders\/[0-9a-f-]+$/);
+  await expect(
+    page.getByRole("heading", { name: "Jylland 2027" }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Jylland 2027" }),
+  ).toBeVisible();
+
+  await page.getByRole("link", { name: "Rediger kladde" }).click();
+  await page.getByLabel("Navn pÃ¥ udbud").fill("Jylland 2027 opdateret");
+  await page.getByRole("button", { name: "Gem kladde" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Jylland 2027 opdateret" }),
+  ).toBeVisible();
+});
+
 test("workspace stays usable at desktop, tablet and mobile widths", async ({
   page,
 }) => {
