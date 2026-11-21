@@ -12,6 +12,7 @@ export const storageDestinationSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("inbound-invoices") }),
   z.object({ kind: z.literal("datasets-shipments") }),
   z.object({ kind: z.literal("carrier-tariffs"), carrierId: safeIdentifier }),
+  z.object({ kind: z.literal("tenders") }),
   z.object({ kind: z.literal("tender"), tenderId: safeIdentifier }),
   z.object({ kind: z.literal("invoice-control") }),
   z.object({ kind: z.literal("import-drafts") }),
@@ -140,6 +141,8 @@ export function destinationPath(destination: StorageDestination): string[] {
       return ["datasets", "shipments"];
     case "carrier-tariffs":
       return ["carriers", destination.carrierId, "tariffs"];
+    case "tenders":
+      return ["tenders"];
     case "tender":
       return ["tenders", destination.tenderId];
     case "invoice-control":
@@ -185,6 +188,7 @@ export function destinationFromPath(path: string): StorageDestination | null {
     });
     return parsed.success ? parsed.data : null;
   }
+  if (path === "tenders") return { kind: "tenders" };
   if (path === "invoice-control") return { kind: "invoice-control" };
   if (path === "exports") return { kind: "exports" };
   if (path === "audits") return { kind: "audits" };

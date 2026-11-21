@@ -43,6 +43,7 @@ const BASE_DESTINATIONS: StorageDestination[] = [
   { kind: "datasets-shipments" },
   { kind: "import-drafts" },
   { kind: "import-mappings" },
+  { kind: "tenders" },
   { kind: "invoice-control" },
   { kind: "exports" },
   { kind: "audits" },

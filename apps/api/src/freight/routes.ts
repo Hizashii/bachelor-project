@@ -7,6 +7,8 @@ import {
   columnMappingSchema,
   type PriceShipment,
   tariffSchema,
+  tenderDraftInputSchema,
+  tenderStatusSchema,
 } from "@freight-desk/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -32,6 +34,12 @@ import {
   type TariffService,
   TariffStateError,
 } from "../tariffs/service.ts";
+import {
+  TenderAccessError,
+  TenderNotFoundError,
+  type TenderService,
+  TenderStateError,
+} from "../tenders/service.ts";
 import { receiveUpload, UploadTooLargeError } from "./upload.ts";
 
 export type FreightDependencies = {
@@ -41,6 +49,7 @@ export type FreightDependencies = {
   library: ImportLibrary;
   tariffs: TariffService;
   pricing: PricingService;
+  tenders: TenderService;
 };
 
 const SWEEP_EVERY_MS = 5 * 60_000;
@@ -77,6 +86,18 @@ const compareBody = z
     shipment: shipmentSchema,
   })
   .strict();
+const tenderQuery = z
+  .object({
+    q: z.string().trim().max(200).optional(),
+    status: tenderStatusSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    cursor: z.coerce.number().int().nonnegative().optional(),
+  })
+  .strict();
+const tenderDraftBody = z.object({ draft: tenderDraftInputSchema }).strict();
+const tenderUpdateBody = z
+  .object({ draft: tenderDraftInputSchema, ifMatch: z.string().min(1) })
+  .strict();
 
 const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
   [ImportAccessError, 404, "We could not find that file."],
@@ -84,6 +105,13 @@ const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
   [TariffAccessError, 403, "You do not have access to that."],
   [ImportStateError, 409, "The file is not ready for that yet."],
   [TariffStateError, 409, "That change is not allowed for this tariff."],
+  [TenderAccessError, 403, "You do not have access to that tender."],
+  [TenderNotFoundError, 404, "We could not find that tender."],
+  [
+    TenderStateError,
+    409,
+    "That tender cannot be changed in its current state.",
+  ],
   [UnreadableFileError, 422, "We could not read that file. Use .xlsx or .csv."],
   [MappingError, 422, "Some required columns are not matched yet."],
   [UploadTooLargeError, 413, "That file is too large."],
@@ -142,6 +170,7 @@ export function registerFreightRoutes(
     };
 
   registerImportRoutes(app, deps, guarded);
+  registerTenderRoutes(app, deps, guarded);
   registerTariffRoutes(app, deps, guarded);
 }
 
@@ -152,6 +181,49 @@ type Guard = <T>(
     reply: FastifyReply,
   ) => Promise<T> | T,
 ) => (request: FastifyRequest, reply: FastifyReply) => Promise<unknown>;
+
+function registerTenderRoutes(
+  app: FastifyInstance,
+  deps: FreightDependencies,
+  guarded: Guard,
+): void {
+  app.get(
+    "/api/tenders",
+    guarded((context, request) => {
+      const query = tenderQuery.parse(request.query);
+      return deps.tenders.list(context, {
+        query: query.q,
+        status: query.status,
+        limit: query.limit,
+        cursor: query.cursor,
+      });
+    }),
+  );
+  app.get(
+    "/api/tenders/:id",
+    guarded((context, request) =>
+      deps.tenders.get(context, idParams.parse(request.params).id),
+    ),
+  );
+  app.post(
+    "/api/tenders",
+    guarded((context, request) =>
+      deps.tenders.create(context, tenderDraftBody.parse(request.body).draft),
+    ),
+  );
+  app.put(
+    "/api/tenders/:id/draft",
+    guarded((context, request) => {
+      const body = tenderUpdateBody.parse(request.body);
+      return deps.tenders.updateDraft(
+        context,
+        idParams.parse(request.params).id,
+        body.draft,
+        body.ifMatch,
+      );
+    }),
+  );
+}
 
 function registerImportRoutes(
   app: FastifyInstance,
