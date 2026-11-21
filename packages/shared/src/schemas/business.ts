@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import {
+  basisPointsSchema,
   currencyCodeSchema,
   entityIdSchema,
   evaluationSchema,
@@ -14,6 +15,7 @@ import {
   serviceCoverageSchema,
   surchargeSchema,
   tenderStatusSchema,
+  timeZoneSchema,
   userRoleSchema,
   utcDateTimeSchema,
   vatTreatmentSchema,
@@ -97,25 +99,45 @@ export const shipmentSchema = z
 export const tenderSchema = z
   .object({
     id: entityIdSchema,
+    revision: positiveIntegerSchema,
     name: z.string().min(1),
     customerReference: z.string().min(1),
     status: tenderStatusSchema,
     ownerUserId: entityIdSchema,
-    deadlineUtc: utcDateTimeSchema,
-    customerTimeZone: z.string().min(1),
+    deadlineUtc: utcDateTimeSchema.nullable(),
+    displayTimeZone: timeZoneSchema,
     currency: currencyCodeSchema,
-    vatTreatment: vatTreatmentSchema,
-    vatRateBasisPoints: z.number().int().min(0).max(10_000),
-    zonePolicy: zonePolicySchema,
-    evaluation: evaluationSchema,
-    shipmentTemplate: excelTemplateSchema,
-    carrierRateTemplate: excelTemplateSchema,
+    vatTreatment: vatTreatmentSchema.nullable(),
+    vatRateBasisPoints: basisPointsSchema.nullable(),
+    zonePolicy: zonePolicySchema.nullable(),
+    evaluation: evaluationSchema.nullable(),
+    shipmentTemplate: excelTemplateSchema.nullable(),
+    carrierRateTemplate: excelTemplateSchema.nullable(),
+    shipmentBasis: z.string().min(1).nullable(),
+    invitedCarrierCompanyIds: z.array(entityIdSchema),
     createdAtUtc: utcDateTimeSchema,
     updatedAtUtc: utcDateTimeSchema,
     openedAtUtc: utcDateTimeSchema.nullable(),
     closedAtUtc: utcDateTimeSchema.nullable(),
     awardedAtUtc: utcDateTimeSchema.nullable(),
     archivedAtUtc: utcDateTimeSchema.nullable(),
+  })
+  .strict();
+
+export const tenderDraftInputSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    customerReference: z.string().trim().min(1).max(200),
+    displayTimeZone: timeZoneSchema,
+    currency: currencyCodeSchema,
+    deadlineUtc: utcDateTimeSchema.nullable().optional(),
+    vatTreatment: vatTreatmentSchema.nullable().optional(),
+    vatRateBasisPoints: basisPointsSchema.nullable().optional(),
+    zonePolicy: zonePolicySchema.nullable().optional(),
+    evaluation: evaluationSchema.nullable().optional(),
+    shipmentTemplate: excelTemplateSchema.nullable().optional(),
+    carrierRateTemplate: excelTemplateSchema.nullable().optional(),
+    shipmentBasis: z.string().trim().min(1).max(200).nullable().optional(),
   })
   .strict();
 

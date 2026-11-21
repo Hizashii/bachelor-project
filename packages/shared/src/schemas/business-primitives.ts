@@ -5,6 +5,12 @@ import { z } from "zod";
 export const entityIdSchema = z.string().uuid();
 export const utcDateTimeSchema = z.string().datetime({ offset: true });
 export const currencyCodeSchema = z.string().regex(/^[A-Z]{3}$/);
+export const timeZoneSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .refine(isTimeZone, "Use a valid IANA time zone.");
 export const nonNegativeIntegerSchema = z.number().int().nonnegative();
 export const positiveIntegerSchema = z.number().int().positive();
 export const basisPointsSchema = z.number().int().min(0).max(10_000);
@@ -179,3 +185,12 @@ export const excelTemplateSchema = z
     approvedAtUtc: utcDateTimeSchema,
   })
   .strict();
+
+function isTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}

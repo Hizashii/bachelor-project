@@ -6,6 +6,7 @@ import {
   offerStateSchema,
   postcodeRangeSchema,
   rateBandSchema,
+  tenderDraftInputSchema,
   tenderStatusSchema,
   userMembershipSchema,
 } from "./business.ts";
@@ -78,5 +79,17 @@ describe("business schemas", () => {
         criteria: [{ kind: "price", weightBasisPoints: 9_999 }],
       }).success,
     ).toBe(false);
+  });
+
+  it("keeps draft-only omissions distinct from explicit zero", () => {
+    const parsed = tenderDraftInputSchema.parse({
+      name: "Draft",
+      customerReference: "C-1",
+      displayTimeZone: "Europe/Copenhagen",
+      currency: "DKK",
+      vatRateBasisPoints: 0,
+    });
+    expect(parsed.deadlineUtc).toBeUndefined();
+    expect(parsed.vatRateBasisPoints).toBe(0);
   });
 });

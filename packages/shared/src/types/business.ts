@@ -20,6 +20,7 @@ import type {
   shipmentSchema,
   surchargeSchema,
   templateKindSchema,
+  tenderDraftInputSchema,
   tenderSchema,
   tenderStatusSchema,
   transportUnitSchema,
@@ -50,5 +51,6 @@ export type UserMembership = z.infer<typeof userMembershipSchema>;
 export type Invitation = z.infer<typeof invitationSchema>;
 export type Shipment = z.infer<typeof shipmentSchema>;
 export type Tender = z.infer<typeof tenderSchema>;
+export type TenderDraftInput = z.infer<typeof tenderDraftInputSchema>;
 export type BidVersion = z.infer<typeof bidVersionSchema>;
 export type Award = z.infer<typeof awardSchema>;
