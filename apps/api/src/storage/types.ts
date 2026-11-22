@@ -52,10 +52,13 @@ export type UploadRequest = z.infer<typeof uploadRequestSchema>;
 export const principalSchema = z.object({
   userId: z.string().min(1).max(200),
   organizationId: z.string().min(1).max(200),
+  role: z.enum(["carrier", "staff"]).optional(),
+  carrierId: safeIdentifier.optional(),
   allowedDestinationKeys: z.array(z.string().min(1).max(200)).max(100),
   permissions: z.object({
     readFiles: z.boolean(),
     readOrganisationFiles: z.boolean(),
+    readTemplates: z.boolean().default(false),
     uploadFiles: z.boolean(),
     deleteFiles: z.boolean(),
     deleteOrganisationFiles: z.boolean(),

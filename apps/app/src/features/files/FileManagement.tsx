@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Copy, Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import { TemplateRegistryPanel } from "./TemplateRegistryPanel";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
 const DESTINATION = "inbound/shipments";
@@ -30,6 +31,9 @@ export function FileManagement({ locale }: FileManagementProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"documents" | "template">(
+    "documents",
+  );
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -172,145 +176,190 @@ export function FileManagement({ locale }: FileManagementProps) {
         <p className="lede">{copy.filesSubtitle}</p>
       </section>
 
-      <section className="cloud-upload white-card">
-        <div>
-          <p className="field-label">{copy.companyCloud}</p>
-          <h2>{copy.saveToCompanyCloud}</h2>
-          <p>{file ? file.name : copy.fileSelectionDetail}</p>
-        </div>
-        <div className="cloud-upload-actions">
-          <label className="button button-secondary" htmlFor="freight-file">
-            {copy.selectFile}
-          </label>
-          <input
-            id="freight-file"
-            className="file-input"
-            type="file"
-            onChange={(event: FileInputChange) =>
-              setFile(event.currentTarget.files?.[0] ?? null)
-            }
-          />
-          <button
-            className="button button-primary"
-            type="button"
-            disabled={!file || busy}
-            onClick={() => void uploadSelectedFile()}
-          >
-            {busy ? copy.working : copy.saveToCloud}
-          </button>
-        </div>
-      </section>
-
-      {message ? <div className="file-message success">✓ {message}</div> : null}
-      {error ? (
-        <div className="file-message error" role="alert">
-          {error}
-        </div>
-      ) : null}
-
-      <section
-        className="file-list-card white-card"
+      <div
+        className="document-tabs"
+        role="tablist"
         aria-label={copy.filesTitle}
       >
-        <div className="file-list-heading">
-          <div>
-            <p className="field-label">{copy.companyCloud}</p>
-            <h2>{copy.shipmentFiles}</h2>
-          </div>
-          <button
-            className="text-link"
-            type="button"
-            onClick={() => void loadFiles()}
-          >
-            {copy.refresh}
-          </button>
-        </div>
-        {loading ? <p className="file-empty">{copy.loading}</p> : null}
-        {!loading && files.length === 0 ? (
-          <p className="file-empty">{copy.noFiles}</p>
-        ) : null}
-        {!loading && files.length > 0 ? (
-          <div className="file-table-wrap">
-            <div className="file-table file-table-header">
-              <span>{copy.fileName}</span>
-              <span>{copy.fileType}</span>
-              <span>{copy.owner}</span>
-              <span>{copy.uploadDate}</span>
-              <span>{copy.status}</span>
-              <span>{copy.actions}</span>
-            </div>
-            {files.map((item) => (
-              <div className="file-table" key={item.id}>
-                <strong>{item.name}</strong>
-                <span>{item.contentType}</span>
-                <span>{item.ownerId}</span>
-                <span>
-                  {new Intl.DateTimeFormat(
-                    locale === "da" ? "da-DK" : "en-GB",
-                  ).format(new Date(item.uploadedAt))}
-                </span>
-                <span className="file-status">
-                  {statusLabel(item.processingStatus, copy)}
-                </span>
-                <span className="file-actions">
-                  <button type="button" onClick={() => void download(item)}>
-                    {copy.download}
-                  </button>
-                  <button type="button" onClick={() => setSelectedFile(item)}>
-                    {copy.details}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void remove(item)}
-                    disabled={busy}
-                  >
-                    {copy.remove}
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </section>
+        <button
+          className={
+            activeTab === "documents" ? "document-tab active" : "document-tab"
+          }
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "documents"}
+          onClick={() => setActiveTab("documents")}
+        >
+          {copy.documentsTab}
+        </button>
+        <button
+          className={
+            activeTab === "template" ? "document-tab active" : "document-tab"
+          }
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "template"}
+          onClick={() => setActiveTab("template")}
+        >
+          {copy.tenderTemplateTab}
+        </button>
+      </div>
 
-      {selectedFile ? (
-        <section className="file-details white-card" aria-label={copy.details}>
-          <div className="file-list-heading">
+      {activeTab === "template" ? (
+        <TemplateRegistryPanel locale={locale} />
+      ) : null}
+
+      {activeTab === "documents" ? (
+        <>
+          <section className="cloud-upload white-card">
             <div>
-              <p className="field-label">{copy.details}</p>
-              <h2>{selectedFile.name}</h2>
+              <p className="field-label">{copy.companyCloud}</p>
+              <h2>{copy.saveToCompanyCloud}</h2>
+              <p>{file ? file.name : copy.fileSelectionDetail}</p>
             </div>
-            <button
-              className="text-link"
-              type="button"
-              onClick={() => setSelectedFile(null)}
+            <div className="cloud-upload-actions">
+              <label className="button button-secondary" htmlFor="freight-file">
+                {copy.selectFile}
+              </label>
+              <input
+                id="freight-file"
+                className="file-input"
+                type="file"
+                onChange={(event: FileInputChange) =>
+                  setFile(event.currentTarget.files?.[0] ?? null)
+                }
+              />
+              <button
+                className="button button-primary"
+                type="button"
+                disabled={!file || busy}
+                onClick={() => void uploadSelectedFile()}
+              >
+                {busy ? copy.working : copy.saveToCloud}
+              </button>
+            </div>
+          </section>
+
+          {message ? (
+            <div className="file-message success">✓ {message}</div>
+          ) : null}
+          {error ? (
+            <div className="file-message error" role="alert">
+              {error}
+            </div>
+          ) : null}
+
+          <section
+            className="file-list-card white-card"
+            aria-label={copy.filesTitle}
+          >
+            <div className="file-list-heading">
+              <div>
+                <p className="field-label">{copy.companyCloud}</p>
+                <h2>{copy.shipmentFiles}</h2>
+              </div>
+              <button
+                className="text-link"
+                type="button"
+                onClick={() => void loadFiles()}
+              >
+                {copy.refresh}
+              </button>
+            </div>
+            {loading ? <p className="file-empty">{copy.loading}</p> : null}
+            {!loading && files.length === 0 ? (
+              <p className="file-empty">{copy.noFiles}</p>
+            ) : null}
+            {!loading && files.length > 0 ? (
+              <div className="file-table-wrap">
+                <div className="file-table file-table-header">
+                  <span>{copy.fileName}</span>
+                  <span>{copy.fileType}</span>
+                  <span>{copy.owner}</span>
+                  <span>{copy.uploadDate}</span>
+                  <span>{copy.status}</span>
+                  <span>{copy.actions}</span>
+                </div>
+                {files.map((item) => (
+                  <div className="file-table" key={item.id}>
+                    <strong>{item.name}</strong>
+                    <span>{item.contentType}</span>
+                    <span>{item.ownerId}</span>
+                    <span>
+                      {new Intl.DateTimeFormat(
+                        locale === "da" ? "da-DK" : "en-GB",
+                      ).format(new Date(item.uploadedAt))}
+                    </span>
+                    <span className="file-status">
+                      {statusLabel(item.processingStatus, copy)}
+                    </span>
+                    <span className="file-actions">
+                      <button type="button" onClick={() => void download(item)}>
+                        {copy.download}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(item)}
+                      >
+                        {copy.details}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(item)}
+                        disabled={busy}
+                      >
+                        {copy.remove}
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+
+          {selectedFile ? (
+            <section
+              className="file-details white-card"
+              aria-label={copy.details}
             >
-              {copy.close}
-            </button>
-          </div>
-          <dl className="file-metadata">
-            <div>
-              <dt>{copy.owner}</dt>
-              <dd>{selectedFile.ownerId}</dd>
-            </div>
-            <div>
-              <dt>{copy.organisation}</dt>
-              <dd>{selectedFile.organizationId}</dd>
-            </div>
-            <div>
-              <dt>{copy.fileType}</dt>
-              <dd>{selectedFile.contentType}</dd>
-            </div>
-            <div>
-              <dt>{copy.version}</dt>
-              <dd>{selectedFile.versionId}</dd>
-            </div>
-            <div>
-              <dt>{copy.status}</dt>
-              <dd>{statusLabel(selectedFile.processingStatus, copy)}</dd>
-            </div>
-          </dl>
-        </section>
+              <div className="file-list-heading">
+                <div>
+                  <p className="field-label">{copy.details}</p>
+                  <h2>{selectedFile.name}</h2>
+                </div>
+                <button
+                  className="text-link"
+                  type="button"
+                  onClick={() => setSelectedFile(null)}
+                >
+                  {copy.close}
+                </button>
+              </div>
+              <dl className="file-metadata">
+                <div>
+                  <dt>{copy.owner}</dt>
+                  <dd>{selectedFile.ownerId}</dd>
+                </div>
+                <div>
+                  <dt>{copy.organisation}</dt>
+                  <dd>{selectedFile.organizationId}</dd>
+                </div>
+                <div>
+                  <dt>{copy.fileType}</dt>
+                  <dd>{selectedFile.contentType}</dd>
+                </div>
+                <div>
+                  <dt>{copy.version}</dt>
+                  <dd>{selectedFile.versionId}</dd>
+                </div>
+                <div>
+                  <dt>{copy.status}</dt>
+                  <dd>{statusLabel(selectedFile.processingStatus, copy)}</dd>
+                </div>
+              </dl>
+            </section>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

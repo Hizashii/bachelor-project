@@ -56,13 +56,86 @@ describe("file API authorization boundary", () => {
   });
 });
 
+describe("document template registry authorization boundary", () => {
+  it("requires an authenticated principal with template permission", async () => {
+    const unauthenticatedApp = await createApiApp({
+      storage: storageStub,
+      resolvePrincipal: async () => null,
+    });
+    const unauthenticated = await unauthenticatedApp.inject({
+      method: "GET",
+      url: "/api/documents/templates",
+    });
+    await unauthenticatedApp.close();
+
+    const deniedApp = await createApiApp({
+      storage: storageStub,
+      resolvePrincipal: async () => ({
+        ...principal,
+        permissions: { ...principal.permissions, readTemplates: false },
+      }),
+    });
+    const denied = await deniedApp.inject({
+      method: "GET",
+      url: "/api/documents/templates",
+    });
+    await deniedApp.close();
+
+    expect(unauthenticated.statusCode).toBe(401);
+    expect(denied.statusCode).toBe(403);
+  });
+
+  it("returns immutable registry metadata and a versioned contract", async () => {
+    const app = await createApiApp({
+      storage: storageStub,
+      resolvePrincipal: async () => principal,
+    });
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/documents/templates",
+    });
+    const detail = await app.inject({
+      method: "GET",
+      url: "/api/documents/templates/express-price/versions/1.0.0",
+    });
+    await app.close();
+
+    expect(list.statusCode).toBe(200);
+    expect(list.json().items).toHaveLength(2);
+    expect(list.json().items[1]).toMatchObject({
+      id: "express-price",
+      version: "1.0.0",
+      mappingStatus: "unverified",
+      immutable: true,
+      source: {
+        fileName: "price_template express.xlsx",
+        sha256:
+          "FA5B5EE75EBBC8D01AA8D6E3DA6905BBFE7CC404A7EFE49A42B67D61BA9DD9D4",
+      },
+    });
+    expect(detail.statusCode).toBe(200);
+    expect(detail.json()).toMatchObject({
+      id: "express-price",
+      version: "1.0.0",
+      blankContract: {
+        commercialInputsBlank: true,
+        businessRows: 0,
+        formulasExecuted: false,
+      },
+    });
+  });
+});
+
 const principal = {
   userId: "user-1",
   organizationId: "org-1",
+  role: "staff" as const,
   allowedDestinationKeys: ["inbound/shipments", "*"],
   permissions: {
     readFiles: true,
     readOrganisationFiles: true,
+    readTemplates: true,
     uploadFiles: true,
     deleteFiles: true,
     deleteOrganisationFiles: true,

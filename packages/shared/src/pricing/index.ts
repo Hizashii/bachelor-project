@@ -1,6 +1,6 @@
-import type { ZoneRange } from "../schemas/road.ts";
+import type { ZoneRange } from "../schemas/road.js";
 
-export type { ZoneRange } from "../schemas/road.ts";
+export type { ZoneRange } from "../schemas/road.js";
 
 export type ZoneValidation = {
   valid: boolean;
