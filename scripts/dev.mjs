@@ -1,5 +1,8 @@
 // This script starts the three local workspaces without adding a process manager.
 import { spawn } from "node:child_process";
+import { prepare } from "./setup.mjs";
+
+await prepare();
 
 const commands = [
   ["apps/site", "dev"],
