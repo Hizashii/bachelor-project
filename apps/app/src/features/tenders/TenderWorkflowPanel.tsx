@@ -12,9 +12,11 @@ import {
 import type { UserRole } from "../../auth/auth";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import { BidStatusPanel } from "./BidStatusPanel";
 import { bindTemplates } from "./bindTemplates";
 import { TenderComparison } from "./TenderComparison";
 import type { TenderRecord } from "./tenderTypes";
+import { useBidStatus } from "./useBidStatus";
 
 type Props = {
   locale: Locale;
@@ -57,7 +59,9 @@ function CarrierBidPanel({
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const { status: bids } = useBidStatus(tenderId, status === "open");
   if (status !== "open") return null;
+  const mine = bids[0];
 
   async function submitBid() {
     if (!file) {
@@ -87,6 +91,12 @@ function CarrierBidPanel({
       aria-labelledby="tender-bid-title"
     >
       <h2 id="tender-bid-title">{copy.uploadExisting}</h2>
+      <p className={mine ? "bid-sent" : "bid-waiting"}>
+        {copy.yourBid}:{" "}
+        {mine
+          ? `${copy.bidSubmitted} v${mine.versionNumber}`
+          : copy.bidNotSubmitted}
+      </p>
       <p>{copy.uploadExistingDetail}</p>
       <button
         className="button button-secondary"
@@ -132,12 +142,10 @@ function StaffWorkflowPanel({
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (record.tender.status === "closed" || record.tender.status === "awarded")
-      return;
     void apiFetch<CarrierOption[]>("/api/tender-carriers")
       .then(setCarriers)
       .catch(() => undefined);
-  }, [record.tender.status]);
+  }, []);
 
   async function transition(action: "open" | "close") {
     setBusy(true);
@@ -215,6 +223,15 @@ function StaffWorkflowPanel({
         ) : null}
         {message ? <p role="status">{message}</p> : null}
       </section>
+      {record.tender.status === "open" || record.tender.status === "closed" ? (
+        <BidStatusPanel
+          locale={locale}
+          record={record}
+          carrierNames={Object.fromEntries(
+            carriers.map((carrier) => [carrier.organisationId, carrier.name]),
+          )}
+        />
+      ) : null}
       {record.tender.status === "draft" || record.tender.status === "open" ? (
         <InvitationPanel
           copy={copy}

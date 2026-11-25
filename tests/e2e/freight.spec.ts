@@ -460,3 +460,26 @@ test("carriers fill the express workbook in the app and staff compare the result
     page.getByRole("row", { name: /Blue Fjord Online/ }),
   ).toContainText("1000.00 DKK");
 });
+
+test("staff see a carrier's bid arrive without reloading, with no prices", async ({
+  page,
+  browser,
+}) => {
+  await createOpenTender(page, "Live status 2027");
+  const status = page.getByRole("region", { name: "Tilbudsstatus" });
+  await expect(status.getByText("Ikke afsendt endnu")).toHaveCount(2);
+
+  const carrierPage = await (await browser.newContext()).newPage();
+  await carrierPage.goto("/login");
+  await carrierPage.getByLabel("E-mail").fill("dana@bluefjord.test");
+  await carrierPage.getByLabel("Password").fill(PASSWORD);
+  await carrierPage.getByRole("button", { name: "Log in" }).click();
+  await carrierPage.getByRole("link", { name: "Live status 2027" }).click();
+  await submitBid(carrierPage, "carrier-north-valid.xlsx");
+  await expect(carrierPage.getByText("Sendt til godkendelse.")).toBeVisible();
+  await expect(carrierPage.getByText("Dit tilbud: Afsendt v1")).toBeVisible();
+
+  await expect(status.getByText(/Afsendt v1/)).toBeVisible({ timeout: 15_000 });
+  await expect(status.getByText("Ikke afsendt endnu")).toHaveCount(1);
+  await expect(page.getByText("5500.00")).toHaveCount(0);
+});
