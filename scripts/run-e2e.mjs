@@ -51,7 +51,11 @@ const server = await createServer({
 const storageRoot = await mkdtemp(join(tmpdir(), "freight-desk-e2e-"));
 const api = spawn(
   process.execPath,
-  ["--experimental-strip-types", "tests/e2e/support/testServer.ts"],
+  [
+    "--conditions=development",
+    "--experimental-strip-types",
+    "tests/e2e/support/testServer.ts",
+  ],
   {
     stdio: "inherit",
     env: {
