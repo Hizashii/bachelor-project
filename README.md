@@ -10,7 +10,8 @@ and carrier screens, and a Fastify API foundation.
 2. Copy `.env.example` to `.env.local`; keep SharePoint mode disabled locally.
 3. Run `npm install`.
 4. Run `npm run check`, `npm test` and `npm run build`.
-5. Run `npm run dev` to start the local workspaces.
+5. Run `npm run start` to start the site, app and API together. (`npm run dev`
+   remains an equivalent development alias.)
 
 On Windows PowerShell, use `npm.cmd` if the execution policy blocks
 `npm.ps1`.
