@@ -36,6 +36,12 @@ import {
   TariffStateError,
 } from "../tariffs/service.ts";
 import {
+  BasisAccessError,
+  basisCountrySchema,
+  type ShipmentBasisService,
+} from "../tenders/basis.ts";
+import { parseBasisWorkbook } from "../tenders/basisWorkbook.ts";
+import {
   BidAccessError,
   type BidService,
   BidStateError,
@@ -63,6 +69,7 @@ export type FreightDependencies = {
   pricing: PricingService;
   tenders: TenderService;
   bids: BidService;
+  basis: ShipmentBasisService;
 };
 
 const SWEEP_EVERY_MS = 5 * 60_000;
@@ -138,6 +145,7 @@ const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
     "That tender cannot be changed in its current state.",
   ],
   [BidAccessError, 403, "You do not have access to that bid."],
+  [BasisAccessError, 403, "Only staff can use the shipment basis."],
   [BidStateError, 409, "That bid cannot be changed right now."],
   [
     PriceTemplateWorkbookError,
@@ -223,20 +231,27 @@ function registerTenderRoutes(
 ): void {
   app.get(
     "/api/tenders",
-    guarded((context, request) => {
+    guarded(async (context, request) => {
       const query = tenderQuery.parse(request.query);
-      return deps.tenders.list(context, {
+      const list = await deps.tenders.list(context, {
         query: query.q,
         status: query.status,
         limit: query.limit,
         cursor: query.cursor,
       });
+      return {
+        ...list,
+        items: list.items.map((item) => redact(context, item)),
+      };
     }),
   );
   app.get(
     "/api/tenders/:id",
-    guarded((context, request) =>
-      deps.tenders.get(context, idParams.parse(request.params).id),
+    guarded(async (context, request) =>
+      redact(
+        context,
+        await deps.tenders.get(context, idParams.parse(request.params).id),
+      ),
     ),
   );
   app.get(
@@ -315,6 +330,8 @@ function registerTenderRoutes(
       deps.bids.listSubmitted(context, idParams.parse(request.params).id),
     ),
   );
+  registerBasisRoutes(app, deps, guarded);
+  registerAwardRoutes(app, deps, guarded);
   app.get(
     "/api/tenders/:id/bid-status",
     guarded((context, request) =>
@@ -350,8 +367,7 @@ function registerTenderRoutes(
     "/api/tenders/:id/export.xlsx",
     guarded(async (context, request, reply) => {
       const id = idParams.parse(request.params).id;
-      const body = tenderCompareBody.parse(request.body);
-      const comparison = await deps.bids.compare(context, id, body.shipments);
+      const comparison = await comparisonFor(deps, context, id, request.body);
       const workbook = await buildResultWorkbook(comparison);
       return sendDownload(
         reply,
@@ -365,8 +381,7 @@ function registerTenderRoutes(
     "/api/tenders/:id/export.pdf",
     guarded(async (context, request, reply) => {
       const id = idParams.parse(request.params).id;
-      const body = tenderCompareBody.parse(request.body);
-      const comparison = await deps.bids.compare(context, id, body.shipments);
+      const comparison = await comparisonFor(deps, context, id, request.body);
       const pdf = await buildComparisonPdf(comparison);
       return sendDownload(
         reply,
@@ -612,4 +627,163 @@ function registerTariffRoutes(
       );
     }),
   );
+}
+
+const basisBody = z
+  .object({
+    countries: z.array(basisCountrySchema).max(60),
+    revision: z.number().int().min(0),
+  })
+  .strict();
+
+function basisVolumes(basis: Awaited<ReturnType<ShipmentBasisService["get"]>>) {
+  return (basis?.countries ?? []).flatMap((country) =>
+    country.rows.map((row) => ({
+      countryCode: country.countryCode,
+      bandLabel: row.label,
+      numberOfShipments: row.numberOfShipments,
+      economyShareBasisPoints: row.economyShareBasisPoints,
+    })),
+  );
+}
+
+function registerBasisRoutes(
+  app: FastifyInstance,
+  deps: FreightDependencies,
+  guarded: Guard,
+): void {
+  app.get(
+    "/api/tenders/:id/basis",
+    guarded(async (context, request) => ({
+      basis: await deps.basis.get(context, idParams.parse(request.params).id),
+    })),
+  );
+  app.put(
+    "/api/tenders/:id/basis",
+    guarded((context, request) => {
+      const body = basisBody.parse(request.body);
+      return deps.basis.save(
+        context,
+        idParams.parse(request.params).id,
+        body.countries,
+        body.revision,
+      );
+    }),
+  );
+  app.post(
+    "/api/tenders/:id/basis/import",
+    guarded(async (context, request) => {
+      if (!Buffer.isBuffer(request.body)) throw new z.ZodError([]);
+      await deps.basis.get(context, idParams.parse(request.params).id);
+      return {
+        countries: await parseBasisWorkbook(
+          request.body as unknown as PriceTemplateWorkbookInput,
+        ),
+      };
+    }),
+  );
+  app.get(
+    "/api/tenders/:id/compare-basis",
+    guarded(async (context, request) => {
+      const id = idParams.parse(request.params).id;
+      return deps.bids.compareVolumes(
+        context,
+        id,
+        await volumesOf(deps, context, id),
+      );
+    }),
+  );
+}
+
+// Exports use the saved shipment basis unless the caller sends shipment lines of its own.
+async function comparisonFor(
+  deps: FreightDependencies,
+  context: AccessContext,
+  tenderId: string,
+  body: unknown,
+) {
+  const lines = z
+    .object({ shipments: tenderCompareBody.shape.shipments.optional() })
+    .passthrough()
+    .parse(body ?? {});
+  if (lines.shipments) {
+    return deps.bids.compare(context, tenderId, lines.shipments);
+  }
+  return deps.bids.compareVolumes(
+    context,
+    tenderId,
+    await volumesOf(deps, context, tenderId),
+  );
+}
+
+async function volumesOf(
+  deps: FreightDependencies,
+  context: AccessContext,
+  tenderId: string,
+) {
+  const basis = await deps.basis.get(context, tenderId);
+  if (!basis) throw new BidStateError("Add a shipment basis before comparing.");
+  return basisVolumes(basis);
+}
+
+const awardBody = z
+  .object({
+    carrierCompanyId: z.string().uuid(),
+    reason: z.string().trim().max(500).optional(),
+    ifMatch: z.string().min(1),
+  })
+  .strict();
+
+function registerAwardRoutes(
+  app: FastifyInstance,
+  deps: FreightDependencies,
+  guarded: Guard,
+): void {
+  app.post(
+    "/api/tenders/:id/award",
+    guarded(async (context, request) => {
+      const id = idParams.parse(request.params).id;
+      const body = awardBody.parse(request.body);
+      const bids = await deps.bids.listSubmitted(context, id);
+      if (!bids.some((bid) => bid.carrierCompanyId === body.carrierCompanyId)) {
+        throw new BidStateError("That carrier has not submitted a bid.");
+      }
+      return deps.tenders.award(context, id, body.ifMatch, {
+        carrierCompanyId: body.carrierCompanyId,
+        reason: body.reason || null,
+      });
+    }),
+  );
+  app.get(
+    "/api/tenders/:id/outcome",
+    guarded(async (context, request) => {
+      const { tender } = await deps.tenders.get(
+        context,
+        idParams.parse(request.params).id,
+      );
+      const awarded = tender.status === "awarded";
+      return {
+        status: tender.status,
+        won: awarded
+          ? tender.awardedCarrierCompanyId === context.organisationId
+          : null,
+      };
+    }),
+  );
+}
+
+// Losing carriers must not learn who won, so the award details are only for staff.
+function redact<T extends { tender: Record<string, unknown> }>(
+  context: AccessContext,
+  saved: T,
+): T {
+  if (context.role !== "carrier") return saved;
+  return {
+    ...saved,
+    tender: {
+      ...saved.tender,
+      awardedCarrierCompanyId: null,
+      awardReason: null,
+    },
+  };
 }

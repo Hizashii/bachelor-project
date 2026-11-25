@@ -3,8 +3,10 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  type BandVolume,
   type BidVersion,
   bidVersionSchema,
+  calculateBandVolumes,
   calculatePriceTemplate,
   type PriceTemplate,
   type PriceTemplateCalculation,
@@ -148,13 +150,34 @@ export class BidService {
     tenderId: string,
     shipments: readonly PriceTemplateShipment[],
   ): Promise<TenderComparison> {
+    return this.compareUsing(context, tenderId, (template) =>
+      calculatePriceTemplate(template, shipments),
+    );
+  }
+
+  // Compares the bids on a saved shipment basis: shipments per country and weight band.
+  async compareVolumes(
+    context: AccessContext,
+    tenderId: string,
+    volumes: readonly BandVolume[],
+  ): Promise<TenderComparison> {
+    return this.compareUsing(context, tenderId, (template) =>
+      calculateBandVolumes(template, volumes),
+    );
+  }
+
+  private async compareUsing(
+    context: AccessContext,
+    tenderId: string,
+    calculate: (template: PriceTemplate) => PriceTemplateCalculation,
+  ): Promise<TenderComparison> {
     const savedTender = await this.deps.tenders.get(context, tenderId);
     if (savedTender.tender.status === "open") {
       throw new BidStateError("Close the tender before comparing bids.");
     }
     const bids = await this.listSubmitted(context, tenderId);
     const candidates = bids.map((bid) =>
-      compareBid(bid, shipments, savedTender.tender.currency),
+      compareBid(bid, calculate, savedTender.tender.currency),
     );
     candidates.sort(compareCandidates);
     return { tenderId, currency: savedTender.tender.currency, candidates };
@@ -260,7 +283,7 @@ function buildBid(
 
 function compareBid(
   bid: BidVersion,
-  shipments: readonly PriceTemplateShipment[],
+  calculate: (template: PriceTemplate) => PriceTemplateCalculation,
   currency: string,
 ): TenderComparisonCandidate {
   const template = bid.priceTemplate;
@@ -273,7 +296,7 @@ function compareBid(
       carrierCompanyId: bid.carrierCompanyId,
       bidVersionId: bid.id,
       vendorName: template.vendorName,
-      result: calculatePriceTemplate(template, shipments),
+      result: calculate(template),
       error: null,
     };
   } catch (error) {

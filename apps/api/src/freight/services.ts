@@ -7,6 +7,7 @@ import { Documents } from "../storage/documents.ts";
 import type { StorageAdapter } from "../storage/types.ts";
 import { PricingService } from "../tariffs/pricing.ts";
 import { TariffService } from "../tariffs/service.ts";
+import { ShipmentBasisService } from "../tenders/basis.ts";
 import { BidService } from "../tenders/bidService.ts";
 import { TenderService } from "../tenders/service.ts";
 import type { FreightDependencies } from "./routes.ts";
@@ -27,6 +28,7 @@ export function createFreightServices(
     tariffs,
     tenders,
     bids,
+    basis: new ShipmentBasisService({ documents, tenders }),
     pricing: new PricingService({ tariffs, permissions }),
   };
 }

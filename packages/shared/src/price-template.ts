@@ -13,6 +13,8 @@ export const priceTemplateBandSchema = z
     toKg: z.number().positive().nullable(),
     economyMinor: z.number().int().nonnegative(),
     expressMinor: z.number().int().nonnegative(),
+    // Pickup is kept for review; the workbook's own total does not include it.
+    pickupMinor: z.number().int().nonnegative().nullable().optional(),
   })
   .strict()
   .refine(
@@ -90,6 +92,57 @@ export function calculatePriceTemplate(
   };
 }
 
+export type BandVolume = {
+  countryCode: string;
+  bandLabel: string;
+  numberOfShipments: number;
+  economyShareBasisPoints: number;
+};
+
+// Prices a shipment basis the way the workbook does: for each country and weight band,
+// shipments x (economy share x economy price + the rest x express price).
+export function calculateBandVolumes(
+  template: PriceTemplate,
+  volumes: readonly BandVolume[],
+): PriceTemplateCalculation {
+  const lines = volumes
+    .filter((volume) => volume.numberOfShipments > 0)
+    .map((volume) => calculateVolume(template, volume));
+  return {
+    currency: template.currency,
+    totalMinor: lines.reduce((total, line) => total + line.totalMinor, 0),
+    lines,
+  };
+}
+
+function calculateVolume(
+  template: PriceTemplate,
+  volume: BandVolume,
+): PriceTemplateLine {
+  const country = template.countries.find(
+    (item) => item.countryCode === volume.countryCode,
+  );
+  if (!country) {
+    throw new PriceTemplateCalculationError(
+      `${volume.countryCode} is not priced.`,
+    );
+  }
+  const band = country.bands.find(
+    (item) => item.label.trim() === volume.bandLabel.trim(),
+  );
+  if (!band) {
+    throw new PriceTemplateCalculationError(
+      `${volume.countryCode} has no price for ${volume.bandLabel}.`,
+    );
+  }
+  return priceBand(
+    band,
+    volume.countryCode,
+    volume.numberOfShipments,
+    volume.economyShareBasisPoints,
+  );
+}
+
 function calculateLine(
   template: PriceTemplate,
   shipment: PriceTemplateShipment,
@@ -105,17 +158,31 @@ function calculateLine(
     throw new PriceTemplateCalculationError(
       "Weight is outside the price bands.",
     );
+  return priceBand(
+    band,
+    shipment.countryCode,
+    shipment.numberOfShipments,
+    shipment.economyShareBasisPoints,
+  );
+}
+
+function priceBand(
+  band: PriceTemplateBand,
+  countryCode: string,
+  numberOfShipments: number,
+  economyShareBasisPoints: number,
+): PriceTemplateLine {
   const weightedMinor =
-    BigInt(band.economyMinor) * BigInt(shipment.economyShareBasisPoints) +
+    BigInt(band.economyMinor) * BigInt(economyShareBasisPoints) +
     BigInt(band.expressMinor) *
-      BigInt(MAX_BASIS_POINTS - shipment.economyShareBasisPoints);
+      BigInt(MAX_BASIS_POINTS - economyShareBasisPoints);
   const perShipmentMinor = divideRound(weightedMinor, BigInt(MAX_BASIS_POINTS));
   return {
-    countryCode: shipment.countryCode,
+    countryCode,
     bandLabel: band.label,
-    numberOfShipments: shipment.numberOfShipments,
-    economyShareBasisPoints: shipment.economyShareBasisPoints,
-    totalMinor: Number(perShipmentMinor * BigInt(shipment.numberOfShipments)),
+    numberOfShipments,
+    economyShareBasisPoints,
+    totalMinor: Number(perShipmentMinor * BigInt(numberOfShipments)),
   };
 }
 

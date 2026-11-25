@@ -147,6 +147,26 @@ export class TenderService {
     });
   }
 
+  // Picks the winning carrier of a closed tender. The caller checks the carrier has bid.
+  async award(
+    context: AccessContext,
+    id: string,
+    ifMatch: string,
+    winner: { carrierCompanyId: string; reason: string | null },
+  ): Promise<SavedTender> {
+    const current = await this.get(context, id);
+    if (
+      !current.tender.invitedCarrierCompanyIds.includes(winner.carrierCompanyId)
+    ) {
+      throw new TenderStateError("Only an invited carrier can win.");
+    }
+    return this.transition(context, id, ifMatch, "closed", "awarded", {
+      awardedAtUtc: new Date().toISOString(),
+      awardedCarrierCompanyId: winner.carrierCompanyId,
+      awardReason: winner.reason,
+    });
+  }
+
   async invite(
     context: AccessContext,
     id: string,
@@ -182,7 +202,16 @@ export class TenderService {
     ifMatch: string,
     from: TenderStatus,
     status: TenderStatus,
-    dates: Partial<Pick<Tender, "openedAtUtc" | "closedAtUtc">>,
+    dates: Partial<
+      Pick<
+        Tender,
+        | "openedAtUtc"
+        | "closedAtUtc"
+        | "awardedAtUtc"
+        | "awardedCarrierCompanyId"
+        | "awardReason"
+      >
+    >,
   ): Promise<SavedTender> {
     this.allow(context, "tender:edit");
     const current = await this.get(context, id);
@@ -296,6 +325,8 @@ function buildDraft(
     openedAtUtc: null,
     closedAtUtc: null,
     awardedAtUtc: null,
+    awardedCarrierCompanyId: null,
+    awardReason: null,
     archivedAtUtc: null,
   };
 }

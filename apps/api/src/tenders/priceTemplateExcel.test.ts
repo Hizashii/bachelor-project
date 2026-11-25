@@ -68,6 +68,7 @@ describe("real express template", () => {
       economyMinor: 4_200,
       expressMinor: 6_800,
     });
+    expect(germany?.bands[0]?.pickupMinor).toBe(2_100);
     expect(germany?.bands[17]).toMatchObject({
       economyMinor: 10_150,
       expressMinor: 12_750,

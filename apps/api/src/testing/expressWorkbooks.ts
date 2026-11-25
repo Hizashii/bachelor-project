@@ -47,6 +47,7 @@ function fillCountrySheet(
     const step = (row - FIRST_BAND_ROW) * prices.bandStep;
     sheet.getCell(row, 3).value = prices.economyFrom + step;
     sheet.getCell(row, 4).value = prices.expressFrom + step;
+    sheet.getCell(row, 8).value = prices.economyFrom / 2 + step;
   }
   for (let row = FIRST_FEE_ROW; row <= LAST_FEE_ROW; row += 1) {
     if (sheet.getCell(row, 2).value) {

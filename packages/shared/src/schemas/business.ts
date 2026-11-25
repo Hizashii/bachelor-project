@@ -121,6 +121,8 @@ export const tenderSchema = z
     openedAtUtc: utcDateTimeSchema.nullable(),
     closedAtUtc: utcDateTimeSchema.nullable(),
     awardedAtUtc: utcDateTimeSchema.nullable(),
+    awardedCarrierCompanyId: entityIdSchema.nullable().default(null),
+    awardReason: z.string().max(500).nullable().default(null),
     archivedAtUtc: utcDateTimeSchema.nullable(),
   })
   .strict();

@@ -59,6 +59,43 @@ function addComparisonSheet(
   }
   sheet.getColumn(4).numFmt = "#,##0.00";
   sheet.getRow(1).font = { bold: true };
+  addCountrySheet(workbook, comparison);
+}
+
+// One row per country and one column per carrier, like the workbook's Total cost sheet.
+function addCountrySheet(
+  workbook: ExcelJS.Workbook,
+  comparison: TenderComparison,
+): void {
+  const priced = comparison.candidates.filter((item) => item.result);
+  const countries = [
+    ...new Set(
+      priced.flatMap((item) =>
+        (item.result?.lines ?? []).map((line) => line.countryCode),
+      ),
+    ),
+  ].sort();
+  if (countries.length === 0) return;
+  const sheet = workbook.addWorksheet("Per country");
+  sheet.addRow([
+    "Country",
+    ...priced.map((item) => item.vendorName ?? item.carrierCompanyId),
+  ]);
+  for (const country of countries) {
+    sheet.addRow([
+      country,
+      ...priced.map((item) => {
+        const lines = (item.result?.lines ?? []).filter(
+          (line) => line.countryCode === country,
+        );
+        return lines.reduce((total, line) => total + line.totalMinor, 0) / 100;
+      }),
+    ]);
+  }
+  sheet.getRow(1).font = { bold: true };
+  for (let column = 2; column <= priced.length + 1; column += 1) {
+    sheet.getColumn(column).numFmt = "#,##0.00";
+  }
 }
 
 function writePdfContent(

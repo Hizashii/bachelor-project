@@ -13,6 +13,7 @@ const FIRST_BAND_ROW = 14;
 const LAST_BAND_ROW = 31;
 const ADDITIONAL_FEE_ROW = 37;
 const RATE_COLUMN = { economy: 3, express: 4 } as const;
+const PICKUP_COLUMN = 8;
 type ExcelWorkbookInput = Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0];
 export type PriceTemplateWorkbookInput = ExcelWorkbookInput;
 
@@ -63,7 +64,25 @@ function readBand(sheet: ExcelJS.Worksheet, row: number): PriceTemplateBand {
     toKg: bounds.toKg,
     economyMinor,
     expressMinor,
+    pickupMinor: readOptionalMoney(sheet, row, PICKUP_COLUMN, label),
   };
+}
+
+function readOptionalMoney(
+  sheet: ExcelJS.Worksheet,
+  row: number,
+  column: number,
+  label: string,
+): number | null {
+  const value = primitive(sheet.getCell(row, column).value);
+  if (value === null || String(value).trim() === "") return null;
+  const amount = parseMinorUnits(value);
+  if (amount === null) {
+    throw new PriceTemplateWorkbookError(
+      `${sheet.name} pickup price for ${label} is not a number.`,
+    );
+  }
+  return amount;
 }
 
 function readMoney(

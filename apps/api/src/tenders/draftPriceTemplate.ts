@@ -100,6 +100,24 @@ function price(
   return null;
 }
 
+function optionalPrice(
+  sheet: WorkbookSheet,
+  values: Values,
+  address: string,
+  where: string,
+  problems: string[],
+): number | null {
+  const raw = values[cell(sheet, address)];
+  const result = amount(raw);
+  if (result.kind === "ok") return result.minor;
+  if (result.kind === "bad") {
+    problems.push(
+      `${sheet.name}: pickup "${raw}" for ${where} ${result.reason}.`,
+    );
+  }
+  return null;
+}
+
 function vendorName(values: Values): string | null {
   const main = values[`${TEMPLATE}|Total cost|C7`]?.trim();
   if (main) return main;
@@ -135,6 +153,13 @@ function readCountry(
       price(sheet, values, `C${row.sourceRow}`, row.label, problems) ?? 0,
     expressMinor:
       price(sheet, values, `D${row.sourceRow}`, row.label, problems) ?? 0,
+    pickupMinor: optionalPrice(
+      sheet,
+      values,
+      `H${row.sourceRow}`,
+      row.label,
+      problems,
+    ),
   }));
   return {
     countryCode: sheet.name.slice(3),

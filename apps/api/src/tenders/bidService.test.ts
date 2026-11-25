@@ -59,6 +59,39 @@ async function setup() {
 }
 
 describe("carrier bid workflow", () => {
+  it("compares bids on a shipment basis and lets staff award the winner", async () => {
+    const { tenders, bids, tenderId } = await setup();
+    const opened = await tenders.open(staff, tenderId, "2");
+    await bids.submit(carrier, tenderId, await priceWorkbook());
+    const closed = await tenders.close(staff, tenderId, opened.etag);
+
+    const result = await bids.compareVolumes(staff, tenderId, [
+      {
+        countryCode: "DE",
+        bandLabel: "1-2 kg",
+        numberOfShipments: 10,
+        economyShareBasisPoints: 10_000,
+      },
+    ]);
+    expect(result.candidates[0]?.result?.totalMinor).toBe(10 * 10_000);
+
+    await expect(
+      tenders.award(staff, tenderId, closed.etag, {
+        carrierCompanyId: "99999999-9999-4999-8999-999999999999",
+        reason: null,
+      }),
+    ).rejects.toThrow(/invited carrier/);
+    const awarded = await tenders.award(staff, tenderId, closed.etag, {
+      carrierCompanyId: carrier.organisationId,
+      reason: "Lowest total",
+    });
+    expect(awarded.tender).toMatchObject({
+      status: "awarded",
+      awardedCarrierCompanyId: carrier.organisationId,
+      awardReason: "Lowest total",
+    });
+  });
+
   it("shows who has bid while open, without any prices", async () => {
     const { tenders, bids, tenderId } = await setup();
     await tenders.open(staff, tenderId, "2");
