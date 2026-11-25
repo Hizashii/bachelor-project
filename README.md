@@ -4,21 +4,34 @@ Freight Desk is the Slinkert & Aarøe logistics platform. The current product
 shell contains a public Astro site, a React/Vite application for tenders,
 carrier bids and comparison, and a Fastify API.
 
-## Run it in 15 minutes
+## Run it
 
-1. Install Node.js 24 or newer.
-2. Copy `.env.example` to `.env.local`; keep SharePoint mode disabled locally.
-3. Run `npm install`.
-4. Run `npm run check`, `npm test` and `npm run build`.
-5. Run `npm run start` to start the site, app and API together. (`npm run dev`
-   remains an equivalent development alias.)
+Install Node.js 24 or newer, and either Docker or a local PostgreSQL. Then:
+
+```
+git pull
+npm run start
+```
+
+On a fresh checkout `npm run start` does the rest: it creates `.env.local`,
+installs the dependencies, starts PostgreSQL with Docker if it is not
+running, applies the database migrations, and creates the local accounts
+(printed once in the terminal). Then it starts the site (`:4321`), the app
+(`:5173`) and the API (`:3000`). Without Docker, start PostgreSQL yourself
+and set `DATABASE_URL` in `.env.local`.
+
+If it says a port is already in use, an old copy is still running. Stop it
+first. Run `npm run check`, `npm test` and `npm run test:e2e` before a pull
+request (`test:e2e` needs `TEST_DATABASE_URL` pointing at a throwaway
+database).
 
 On Windows PowerShell, use `npm.cmd` if the execution policy blocks
-`npm.ps1`.
+`npm.ps1`. The API health check is `http://127.0.0.1:3000/health`.
 
 ## Sign in and test with real workbooks
 
-1. Run `npm run db:migrate`, then `npm run seed:users`. This creates an admin
+1. `npm run start` creates the accounts on a new database. To create them by
+   hand, run `npm run db:migrate`, then `npm run seed:users`. This creates an admin
    (`admin@freight.local`), a consultant (`consultant@freight.local`) and three
    carriers (`north@`, `south@`, `east@freight.local`), with a random password
    for each, printed once. To use one password while testing locally, run
@@ -29,10 +42,10 @@ On Windows PowerShell, use `npm.cmd` if the execution policy blocks
    made, filled workbooks are in `tests/fixtures/express/` (three valid, three
    broken). `npm run fixtures:excel` rebuilds them from S&A's real template in
    `database/excel/`; the prices in them are made up.
-4. As staff, close the tender, compare the bids and download the result.
-
-The API health check is available at `http://127.0.0.1:3000/health` after the
-development processes start.
+4. As staff, enter the shipment basis (or import it from the express workbook,
+   columns E and J), close the tender, compare the bids per country, review
+   every carrier's prices, award the winner and download the result. As an
+   admin, the Users screen adds carrier companies and invites users.
 
 ## Architecture
 
