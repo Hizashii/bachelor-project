@@ -59,6 +59,25 @@ async function setup() {
 }
 
 describe("carrier bid workflow", () => {
+  it("shows who has bid while open, without any prices", async () => {
+    const { tenders, bids, tenderId } = await setup();
+    await tenders.open(staff, tenderId, "2");
+    expect(await bids.status(staff, tenderId)).toEqual([]);
+
+    await bids.submit(carrier, tenderId, await priceWorkbook());
+    await bids.submit(carrier, tenderId, await priceWorkbook());
+
+    const forStaff = await bids.status(staff, tenderId);
+    expect(forStaff).toEqual([
+      {
+        carrierCompanyId: carrier.organisationId,
+        versionNumber: 2,
+        submittedAtUtc: expect.any(String),
+      },
+    ]);
+    expect(await bids.status(carrier, tenderId)).toEqual(forStaff);
+  });
+
   it("stores a new version and keeps it sealed until close", async () => {
     const { tenders, bids, tenderId } = await setup();
     const opened = await tenders.open(staff, tenderId, "2");

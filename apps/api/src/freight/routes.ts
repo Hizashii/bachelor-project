@@ -315,6 +315,12 @@ function registerTenderRoutes(
       deps.bids.listSubmitted(context, idParams.parse(request.params).id),
     ),
   );
+  app.get(
+    "/api/tenders/:id/bid-status",
+    guarded((context, request) =>
+      deps.bids.status(context, idParams.parse(request.params).id),
+    ),
+  );
   app.post(
     "/api/tenders/:id/compare",
     guarded((context, request) => {

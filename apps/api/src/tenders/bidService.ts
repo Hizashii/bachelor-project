@@ -38,6 +38,13 @@ export type TenderComparisonCandidate = {
   error: string | null;
 };
 
+// Who has bid and when. It never carries prices, so it is safe while bids are sealed.
+export type BidStatus = {
+  carrierCompanyId: string;
+  versionNumber: number;
+  submittedAtUtc: string | null;
+};
+
 export type TenderComparison = {
   tenderId: string;
   currency: string;
@@ -88,6 +95,28 @@ export class BidService {
       bid,
     );
     return bid;
+  }
+
+  async status(context: AccessContext, tenderId: string): Promise<BidStatus[]> {
+    await this.deps.tenders.get(context, tenderId);
+    const bids =
+      context.role === "carrier"
+        ? (await this.latestForCarrier(context, tenderId)).map(
+            (item) => item.bid,
+          )
+        : await this.readBids(context, tenderId);
+    const latest = new Map<string, BidVersion>();
+    for (const bid of bids) {
+      const current = latest.get(bid.carrierCompanyId);
+      if (!current || bid.versionNumber > current.versionNumber) {
+        latest.set(bid.carrierCompanyId, bid);
+      }
+    }
+    return [...latest.values()].map((bid) => ({
+      carrierCompanyId: bid.carrierCompanyId,
+      versionNumber: bid.versionNumber,
+      submittedAtUtc: bid.submittedAtUtc,
+    }));
   }
 
   async listSubmitted(
