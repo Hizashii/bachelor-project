@@ -801,9 +801,10 @@ h3 {
   color: #53677a;
 }
 .tender-next-step {
-  border-left: 3px solid #bd8c30;
-  color: #53677a;
-  padding-left: 0.8rem;
+  background: #efe6d4;
+  border-radius: 0.5rem;
+  color: #102b44;
+  padding: 0.8rem 1rem;
 }
 .document-tabs {
   border-bottom: 1px solid #d4d0c9;
@@ -1009,4 +1010,115 @@ h3 {
 }
 .workbook-table-stack {
   padding-inline: 0.7rem;
+}
+
+/* Motion: quick state feedback, one soft entrance per screen. */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes screen-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@keyframes row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+}
+
+@keyframes message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@keyframes best-row-in {
+  from {
+    background-color: transparent;
+  }
+}
+
+.screen,
+.portal-screen {
+  animation: screen-enter 260ms var(--ease-out) both;
+}
+
+.table-frame tbody tr,
+.workbook-table tbody tr {
+  animation: row-enter 240ms var(--ease-out) both;
+}
+
+.table-frame tbody tr:nth-child(2),
+.workbook-table tbody tr:nth-child(2) {
+  animation-delay: 30ms;
+}
+
+.table-frame tbody tr:nth-child(3),
+.workbook-table tbody tr:nth-child(3) {
+  animation-delay: 60ms;
+}
+
+.table-frame tbody tr:nth-child(4),
+.workbook-table tbody tr:nth-child(4) {
+  animation-delay: 90ms;
+}
+
+.table-frame tbody tr:nth-child(n + 5),
+.workbook-table tbody tr:nth-child(n + 5) {
+  animation-delay: 120ms;
+}
+
+.table-frame tbody tr,
+.workbook-table tbody td {
+  transition: background-color 150ms var(--ease-out);
+}
+
+.table-frame tbody tr:hover {
+  background-color: rgb(16 43 68 / 4%);
+}
+
+.file-message,
+.saved-message,
+.unsaved-message {
+  animation: message-enter 200ms var(--ease-out) both;
+}
+
+.button {
+  transition:
+    background 150ms var(--ease-out),
+    border-color 150ms var(--ease-out),
+    color 150ms var(--ease-out),
+    opacity 150ms var(--ease-out),
+    transform 100ms var(--ease-out);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+.nav-link,
+.document-tab,
+.tender-tab {
+  transition:
+    color 180ms var(--ease-out),
+    border-color 180ms var(--ease-out),
+    background-color 180ms var(--ease-out);
+}
+
+input,
+select,
+textarea {
+  transition:
+    border-color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+
+.best-row {
+  animation: best-row-in 500ms var(--ease-out) 600ms backwards;
 }

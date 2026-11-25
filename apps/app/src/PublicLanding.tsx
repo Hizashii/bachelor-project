@@ -337,7 +337,7 @@ function ComparisonRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-4 py-5 text-sm tabular-nums ${offer.best ? "rounded bg-white/15 px-3 font-semibold" : ""}`}
+      className={`flex items-center justify-between gap-4 py-5 text-sm tabular-nums ${offer.best ? "best-row rounded bg-white/15 px-3 font-semibold" : ""}`}
     >
       <span className="flex items-center gap-3">
         <span

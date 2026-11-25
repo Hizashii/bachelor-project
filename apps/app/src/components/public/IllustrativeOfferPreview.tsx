@@ -93,7 +93,7 @@ function PreviewGrid({ copy, locale }: { copy: PreviewCopy; locale: Locale }) {
 function PreviewRow({ offer, locale }: { offer: SampleOffer; locale: Locale }) {
   return (
     <div
-      className={`grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] items-center gap-2 py-4 text-xs tabular-nums sm:gap-3 sm:text-sm ${offer.best ? "bg-freight-sand/80 font-semibold" : ""}`}
+      className={`grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] items-center gap-2 py-4 text-xs tabular-nums sm:gap-3 sm:text-sm ${offer.best ? "best-row bg-freight-sand/80 font-semibold" : ""}`}
     >
       <span>{offer.carrier}</span>
       <span>{formatDkk(offer.annualPriceDkk, locale)}</span>
