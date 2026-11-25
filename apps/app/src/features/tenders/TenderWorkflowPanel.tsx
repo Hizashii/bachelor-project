@@ -260,7 +260,7 @@ function InvitationPanel({
         disabled={busy || carriers.length === 0}
         onClick={onInvite}
       >
-        {copy.saved}
+        {copy.saveChanges}
       </button>
     </section>
   );

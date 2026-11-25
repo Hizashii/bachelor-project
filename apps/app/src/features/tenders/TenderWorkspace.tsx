@@ -7,6 +7,7 @@ import type {
 import { parseDecimalInput, verifiedTemplateView } from "@freight-desk/shared";
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router";
+import { csrfHeader } from "../../api/client";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 import { WorkbookTable } from "./WorkbookTable";
@@ -492,7 +493,10 @@ async function request<T>(
 ): Promise<T> {
   const response = await fetch(`${API_ORIGIN}${path}`, {
     credentials: "include",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
+    headers: {
+      ...(method === "GET" ? {} : await csrfHeader()),
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
     method,
     body: body ? JSON.stringify(body) : undefined,
   });
