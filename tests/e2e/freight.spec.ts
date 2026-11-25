@@ -2,6 +2,7 @@
 // All files are generated here from synthetic rows.
 
 import { expect, type Page, test } from "@playwright/test";
+import ExcelJS from "exceljs";
 
 const shipmentsCsv = [
   "Forsendelsesnr;Fra postnr;Til postnr;Vægt (kg)",
@@ -267,3 +268,114 @@ test("compare: shows the calculated price and marks reliability as not available
   await expect(page.getByText("Ikke tilgængelig").first()).toBeVisible();
   await expect(page.getByText(/%/)).toHaveCount(0);
 });
+
+async function createOpenTender(page: Page, name: string): Promise<string> {
+  await page.goto("/tenders/new");
+  await page.getByLabel("Navn på udbud").fill(name);
+  await page.getByLabel("Kundereference").fill("SA-LIFE-01");
+  await page.getByLabel("Visningstidszone").fill("Europe/Copenhagen");
+  await page.getByLabel("Valuta").selectOption("DKK");
+  await page.getByRole("button", { name: "Gem kladde" }).click();
+  await expect(page).toHaveURL(/\/tenders\/[0-9a-f-]+$/);
+  const tenderId = page.url().split("/").pop() ?? "";
+  await page.getByLabel("Blue Fjord").check();
+  await page.getByRole("button", { name: "Gem ændringer" }).click();
+  await expect(page.getByText("Ændringer gemt")).toBeVisible();
+  await page.getByRole("button", { name: "Åben", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Lukket" })).toBeVisible();
+  return tenderId;
+}
+
+async function bidWorkbook(rate: number) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.addWorksheet("Total cost").getCell("C7").value = "Blue Fjord";
+  const sheet = workbook.addWorksheet("DK-DE");
+  for (let row = 14; row <= 31; row += 1) {
+    sheet.getCell(row, 2).value =
+      row === 31 ? "Over 300 kg" : `${row - 14}-${row - 13} kg`;
+    sheet.getCell(row, 3).value = rate;
+    sheet.getCell(row, 4).value = rate + 50;
+  }
+  return Buffer.from(await workbook.xlsx.writeBuffer());
+}
+
+test("tender lifecycle: invite, carrier bids, staff closes and compares", async ({
+  page,
+}) => {
+  await createOpenTender(page, "Lifecycle bid 2027");
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await logIn(page, "dana@bluefjord.test");
+
+  await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
+  await page.getByLabel("Upload Excel").setInputFiles({
+    name: "bid.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: await bidWorkbook(100),
+  });
+  await page.getByRole("button", { name: "Send til godkendelse" }).click();
+  await expect(page.getByText("Sendt til godkendelse.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await logIn(page, "staff@example.test");
+  await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
+  await page.getByRole("button", { name: "Lukket" }).click();
+  await page.getByRole("button", { name: "Sammenlign", exact: true }).click();
+  await expect(page.getByText(/Blue Fjord: \d+\.\d{2} DKK/)).toBeVisible();
+});
+
+test("tender workspace: staff saves a price and it survives a reload", async ({
+  page,
+}) => {
+  const tenderId = await createOpenTender(page, "Lifecycle workspace 2027");
+  await page.getByRole("link", { name: "Tilbudsskabelon" }).click();
+  await expect(page.getByText("Template ikke konfigureret")).toBeVisible();
+
+  await bindTemplates(page, tenderId);
+  await page.reload();
+  await page.getByRole("tab", { name: "Express price workbook" }).click();
+  await page.getByRole("tab", { name: /^DK-BE/ }).click();
+  await page.getByRole("textbox", { name: /DK-BE/ }).first().fill("12,5");
+  await page.getByRole("button", { name: "Gem ændringer" }).click();
+  await expect(page.getByText("Kladde gemt")).toBeVisible();
+
+  await page.reload();
+  await page.getByRole("tab", { name: "Express price workbook" }).click();
+  await page.getByRole("tab", { name: /^DK-BE/ }).click();
+  await expect(
+    page.getByRole("textbox", { name: /DK-BE/ }).first(),
+  ).toHaveValue("12,5");
+});
+
+// Staff binding has no screen yet, so the test calls the API the way a screen would.
+async function bindTemplates(page: Page, tenderId: string) {
+  const { token } = await (await page.request.get("/api/csrf")).json();
+  const carriers = await (
+    await page.request.get("/api/tender-carriers")
+  ).json();
+  const { items } = await (
+    await page.request.get("/api/documents/templates")
+  ).json();
+  const binding = (kind: string) => {
+    const item = items.find((entry: { kind: string }) => entry.kind === kind);
+    return {
+      templateId: item.id,
+      templateVersion: item.version,
+      sourceSha256: item.source.sha256,
+    };
+  };
+  const response = await page.request.put(
+    `/api/tenders/${tenderId}/template-config`,
+    {
+      headers: { "x-csrf-token": token, origin: new URL(page.url()).origin },
+      data: {
+        biddingTemplate: binding("customer-bidding"),
+        expressPriceTemplate: binding("express-price"),
+        invitedCarrierIds: carriers.map(
+          (carrier: { organisationId: string }) => carrier.organisationId,
+        ),
+      },
+    },
+  );
+  expect(response.ok(), await response.text()).toBe(true);
+}

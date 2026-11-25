@@ -1,5 +1,6 @@
-// Creates one open demo tender with both price workbooks bound and example prices saved,
-// so the tender workspace shows numbers instead of empty tables.
+// Creates one open demo tender with both price workbooks bound and example express
+// prices saved for staff, so the tender workspace shows numbers instead of empty tables.
+// The bidding workbook has no price cells yet, so carriers get no draft.
 
 import {
   findTemplateVersion,
@@ -22,7 +23,7 @@ const BASE_PRICE = 40;
 
 type TemplateId = "customer-bidding" | "express-price";
 
-type DemoCarrier = { userId: string; companyId: string; priceStep: number };
+type DemoCarrier = { companyId: string };
 
 export async function seedDemoTender(deps: {
   storage: StorageAdapter;
@@ -58,16 +59,6 @@ export async function seedDemoTender(deps: {
   const staffUser = demoUser(staff.userId, "master", null);
   await configureOnce(drafts, staffUser, tenderId, companyIds);
   await saveExamplePrices(drafts, tenderId, staffUser, "express-price", 0);
-  for (const carrier of carriers) {
-    const user = demoUser(carrier.userId, "carrier", carrier.companyId);
-    await saveExamplePrices(
-      drafts,
-      tenderId,
-      user,
-      "customer-bidding",
-      carrier.priceStep,
-    );
-  }
 }
 
 async function configureOnce(

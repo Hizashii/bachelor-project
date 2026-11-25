@@ -231,21 +231,21 @@ async function seed(): Promise<void> {
       password: DEMO_PASSWORDS.staff,
       role: "master",
     });
-    const northlineUserId = await ensureUser(accounts, credentials, {
+    await ensureUser(accounts, credentials, {
       email: "demo.northline@freight.local",
       displayName: "DEMO Northline Pricing",
       password: DEMO_PASSWORDS.northline,
       role: "carrier",
       carrierId: carrierIds.northline,
     });
-    const sydfragtUserId = await ensureUser(accounts, credentials, {
+    await ensureUser(accounts, credentials, {
       email: "demo.sydfragt@freight.local",
       displayName: "DEMO Sydfragt Pricing",
       password: DEMO_PASSWORDS.sydfragt,
       role: "carrier",
       carrierId: carrierIds.sydfragt,
     });
-    const balticUserId = await ensureUser(accounts, credentials, {
+    await ensureUser(accounts, credentials, {
       email: "demo.baltic@freight.local",
       displayName: "DEMO Baltic Pricing",
       password: DEMO_PASSWORDS.baltic,
@@ -343,17 +343,9 @@ async function seed(): Promise<void> {
       tenders: new TenderService({ documents, permissions }),
       staff: context,
       carriers: [
-        {
-          userId: northlineUserId,
-          companyId: carrierIds.northline,
-          priceStep: 0,
-        },
-        {
-          userId: sydfragtUserId,
-          companyId: carrierIds.sydfragt,
-          priceStep: 3,
-        },
-        { userId: balticUserId, companyId: carrierIds.baltic, priceStep: 6 },
+        { companyId: carrierIds.northline },
+        { companyId: carrierIds.sydfragt },
+        { companyId: carrierIds.baltic },
       ],
     });
     const demoDirectory = join(process.cwd(), "data", "demo");
