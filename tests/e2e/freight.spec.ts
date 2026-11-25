@@ -286,8 +286,8 @@ async function createOpenTender(page: Page, name: string): Promise<string> {
   await page.getByLabel("Blue Fjord").check();
   await page.getByRole("button", { name: "Gem ændringer" }).click();
   await expect(page.getByText("Ændringer gemt")).toBeVisible();
-  await page.getByRole("button", { name: "Åben", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Lukket" })).toBeVisible();
+  await page.getByRole("button", { name: "Åbn udbud" }).click();
+  await expect(page.getByRole("button", { name: "Luk udbud" })).toBeVisible();
   return tenderId;
 }
 
@@ -324,7 +324,7 @@ test("tender lifecycle: invite, carrier bids, staff closes and compares", async 
   await page.getByRole("button", { name: "Log ud" }).click();
   await logIn(page, "staff@example.test");
   await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
-  await page.getByRole("button", { name: "Lukket" }).click();
+  await page.getByRole("button", { name: "Luk udbud" }).click();
   await page.getByRole("button", { name: "Sammenlign", exact: true }).click();
   await expect(page.getByText(/Blue Fjord: \d+\.\d{2} DKK/)).toBeVisible();
 });
@@ -354,4 +354,63 @@ test("tender workspace: staff saves a price and it survives a reload", async ({
   await expect(
     page.getByRole("textbox", { name: /DK-BE/ }).first(),
   ).toHaveValue("12,5");
+});
+
+const NAV_BY_ROLE: [string, string, string[]][] = [
+  [
+    "staff",
+    "staff@example.test",
+    ["/tenders", "/upload", "/files", "/compare", "/carriers"],
+  ],
+  ["carrier", "dana@bluefjord.test", ["/tenders", "/carriers"]],
+];
+
+for (const [role, email, routes] of NAV_BY_ROLE) {
+  test(`${role}: sign in from the homepage button and open every page`, async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Log ud" }).click();
+    await expect(page.getByLabel("E-mail")).toBeVisible();
+    await page.goto("/");
+    const problems: string[] = [];
+    page.on("pageerror", (error) => problems.push(error.message));
+    page.on("response", (response) => {
+      if (response.status() >= 500) problems.push(response.url());
+    });
+
+    await page.getByRole("link", { name: "Log ind" }).first().click();
+    await expect(page.getByLabel("E-mail")).toBeVisible();
+    await page.getByLabel("E-mail").fill(email);
+    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByRole("button", { name: "Log in" }).click();
+    await expect(page).toHaveURL(/\/tenders$/);
+
+    for (const route of routes) {
+      await page.goto(route);
+      await expect(page.locator("main h1").first()).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`${route}$`));
+    }
+    expect(problems).toEqual([]);
+  });
+}
+
+test("a wrong password shows an error and stays on the login page", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await page.getByLabel("E-mail").fill("staff@example.test");
+  await page.getByLabel("Password").fill("not the password");
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("signing out returns to the login page and blocks the app", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/tenders");
+  await expect(page.getByLabel("E-mail")).toBeVisible();
 });

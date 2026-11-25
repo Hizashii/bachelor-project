@@ -155,6 +155,9 @@ const localeCopy = {
     saveChanges: "Gem ændringer",
     tenderTemplateTab: "Tilbudsskabelon",
     bindTemplates: "Knyt prisskabeloner",
+    openTender: "Åbn udbud",
+    closeTender: "Luk udbud",
+    downloadTemplate: "Download skabelon",
     bindTemplatesDetail:
       "Knyt de godkendte Excel-skabeloner til udbuddet, så priser kan udfyldes.",
     templatesBound: "Skabeloner knyttet til udbuddet.",
@@ -569,6 +572,9 @@ const localeCopy = {
     saveChanges: "Save changes",
     tenderTemplateTab: "Tender price template",
     bindTemplates: "Attach price templates",
+    openTender: "Open tender",
+    closeTender: "Close tender",
+    downloadTemplate: "Download template",
     bindTemplatesDetail:
       "Attach the approved Excel templates to this tender so prices can be entered.",
     templatesBound: "Templates attached to the tender.",

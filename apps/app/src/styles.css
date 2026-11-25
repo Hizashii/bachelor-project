@@ -972,44 +972,48 @@ h3 {
 .template-details > .file-list-heading {
   align-items: start;
 }
-.template-layout {
-  grid-template-columns: 1fr;
+@media (max-width: 980px) {
+  .template-layout {
+    grid-template-columns: 1fr;
+  }
+  .template-metadata {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
-.template-metadata {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.template-metadata {
-  grid-template-columns: 1fr;
-}
-.template-metadata div:last-child {
-  grid-column: auto;
-}
-.template-sheet-row {
-  align-items: start;
-  grid-template-columns: 1fr;
-}
-.tender-workspace-heading,
-.tender-editor-footer {
-  align-items: stretch;
-  flex-direction: column;
-}
-.tender-draft-scope {
-  max-width: none;
-  text-align: left;
-}
-.tender-vendor-field {
-  align-items: start;
-  flex-direction: column;
-}
-.tender-vendor-field input {
-  min-width: 0;
-  width: 100%;
-}
-.tender-editor-actions {
-  justify-content: flex-end;
-}
-.workbook-table-stack {
-  padding-inline: 0.7rem;
+@media (max-width: 720px) {
+  .template-metadata {
+    grid-template-columns: 1fr;
+  }
+  .template-metadata div:last-child {
+    grid-column: auto;
+  }
+  .template-sheet-row {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
+  .tender-workspace-heading,
+  .tender-editor-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tender-draft-scope {
+    max-width: none;
+    text-align: left;
+  }
+  .tender-vendor-field {
+    align-items: start;
+    flex-direction: column;
+  }
+  .tender-vendor-field input {
+    min-width: 0;
+    width: 100%;
+  }
+  .tender-editor-actions {
+    justify-content: flex-end;
+  }
+  .workbook-table-stack {
+    padding-inline: 0.7rem;
+  }
 }
 
 /* Motion: quick state feedback, one soft entrance per screen. */

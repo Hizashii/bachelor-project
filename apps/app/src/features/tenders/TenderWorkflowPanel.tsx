@@ -86,7 +86,7 @@ function CarrierBidPanel({
         type="button"
         onClick={() => void downloadTemplate(tenderId)}
       >
-        {copy.downloadResult}
+        {copy.downloadTemplate}
       </button>
       <input
         aria-label={copy.uploadExcel}
@@ -183,7 +183,7 @@ function StaffWorkflowPanel({
             disabled={busy}
             onClick={() => void transition("open")}
           >
-            {copy.open}
+            {copy.openTender}
           </button>
         ) : null}
         {record.tender.status === "open" ? (
@@ -193,7 +193,7 @@ function StaffWorkflowPanel({
             disabled={busy}
             onClick={() => void transition("close")}
           >
-            {copy.closed}
+            {copy.closeTender}
           </button>
         ) : null}
         {record.tender.status === "closed" ? (

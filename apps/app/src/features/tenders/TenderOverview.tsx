@@ -73,7 +73,9 @@ export function TenderOverview({
       />
       <div className="tender-detail-header">
         <StatusBadge tone="warning">{statusLabel(tender, copy)}</StatusBadge>
-        <span>{copy.tenderDraftNotice}</span>
+        {tender.status === "draft" ? (
+          <span>{copy.tenderDraftNotice}</span>
+        ) : null}
       </div>
       <nav className="tender-tabs" aria-label={copy.tenderOverview}>
         <span className="tender-tab active">{copy.tenderOverview}</span>
@@ -85,7 +87,7 @@ export function TenderOverview({
         <div className="tender-overview-heading">
           <div>
             <h2 id="tender-readiness-title">{copy.tenderReadiness}</h2>
-            <p>{copy.tenderDraftNotice}</p>
+            {tender.status === "draft" ? <p>{copy.tenderDraftNotice}</p> : null}
           </div>
           <StatusBadge
             tone={

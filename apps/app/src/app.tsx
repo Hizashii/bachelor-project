@@ -1,5 +1,5 @@
 import { type ReactElement, useState } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import {
   AcceptInvitationScreen,
   LoginScreen,
@@ -21,12 +21,8 @@ import { PublicLanding } from "./PublicLanding";
 export function App(): ReactElement {
   const auth = useAuth();
   const [locale, setLocale] = useState<Locale>("da");
-  const path = window.location.pathname;
-  const isPublicEntry = ![
-    "/login",
-    "/accept-invitation",
-    "/reset-password",
-  ].includes(path);
+  const path = useLocation().pathname;
+  const isPublicEntry = path === "/";
 
   if (isPublicEntry && auth.status !== "authenticated" && !auth.user) {
     return <PublicLanding locale={locale} onLocaleChange={setLocale} />;
@@ -45,7 +41,7 @@ export function App(): ReactElement {
       </div>
     );
   }
-  if (!auth.user) return signedOutScreen(path, locale, setLocale);
+  if (!auth.user) return signedOutScreen(path);
 
   return (
     <AppShell
@@ -150,13 +146,9 @@ function TenderEditRoute({ locale }: { locale: Locale }) {
   return <TenderForm locale={locale} tenderId={id} />;
 }
 
-function signedOutScreen(
-  path: string,
-  locale: Locale,
-  onLocaleChange: (locale: Locale) => void,
-): ReactElement {
+function signedOutScreen(path: string): ReactElement {
   if (path === "/accept-invitation") return <AcceptInvitationScreen />;
   if (path === "/reset-password") return <ResetPasswordScreen />;
   if (path === "/login") return <LoginScreen />;
-  return <PublicLanding locale={locale} onLocaleChange={onLocaleChange} />;
+  return <LoginScreen />;
 }
