@@ -40,11 +40,7 @@ import {
   type BidService,
   BidStateError,
 } from "../tenders/bidService.ts";
-import {
-  buildBiddingWorkbook,
-  buildComparisonPdf,
-  buildPriceTemplateWorkbook,
-} from "../tenders/exports.ts";
+import { buildComparisonPdf, buildResultWorkbook } from "../tenders/exports.ts";
 import {
   PriceTemplateWorkbookError,
   type PriceTemplateWorkbookInput,
@@ -55,6 +51,7 @@ import {
   type TenderService,
   TenderStateError,
 } from "../tenders/service.ts";
+import { readTemplateFile } from "../tenders/templateFiles.ts";
 import { receiveUpload, UploadTooLargeError } from "./upload.ts";
 
 export type FreightDependencies = {
@@ -332,7 +329,7 @@ function registerTenderRoutes(
     guarded(async (context, request, reply) => {
       const id = idParams.parse(request.params).id;
       await deps.tenders.get(context, id);
-      const workbook = await buildPriceTemplateWorkbook();
+      const workbook = await readTemplateFile("express-price");
       return sendDownload(
         reply,
         workbook,
@@ -347,7 +344,7 @@ function registerTenderRoutes(
       const id = idParams.parse(request.params).id;
       const body = tenderCompareBody.parse(request.body);
       const comparison = await deps.bids.compare(context, id, body.shipments);
-      const workbook = await buildBiddingWorkbook(comparison);
+      const workbook = await buildResultWorkbook(comparison);
       return sendDownload(
         reply,
         workbook,

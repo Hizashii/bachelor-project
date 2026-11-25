@@ -1,13 +1,10 @@
-// These tests prove both export formats contain a usable tender result.
+// These tests prove the template download and both export formats are usable.
 
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
 import type { TenderComparison } from "./bidService.ts";
-import {
-  buildBiddingWorkbook,
-  buildComparisonPdf,
-  buildPriceTemplateWorkbook,
-} from "./exports.ts";
+import { buildComparisonPdf, buildResultWorkbook } from "./exports.ts";
+import { readTemplateFile } from "./templateFiles.ts";
 
 const comparison: TenderComparison = {
   tenderId: "11111111-1111-4111-8111-111111111111",
@@ -24,26 +21,25 @@ const comparison: TenderComparison = {
 };
 
 describe("tender exports", () => {
-  it("creates the carrier price workbook with all country sheets and formulas", async () => {
+  it("serves S&A's own express workbook with every country sheet", async () => {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(await buildPriceTemplateWorkbook());
+    await workbook.xlsx.load(
+      (await readTemplateFile("express-price")) as never,
+    );
 
     expect(workbook.worksheets).toHaveLength(18);
-    expect(workbook.getWorksheet("DK-DE")?.getCell("F14").value).toMatchObject({
-      formula: expect.stringContaining("E14*J14*C14"),
-    });
+    expect(workbook.getWorksheet("DK-DE")?.getCell("B14").value).toBe("0-1 kg");
   });
 
-  it("adds a comparison result sheet to the bidding workbook", async () => {
+  it("writes the result as a new workbook", async () => {
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(await buildBiddingWorkbook(comparison));
+    await workbook.xlsx.load(await buildResultWorkbook(comparison));
 
-    expect(
-      workbook.getWorksheet("Freight Desk result")?.getCell("A2").value,
-    ).toBe("Carrier A");
-    expect(
-      workbook.getWorksheet("Freight Desk result")?.getCell("D2").value,
-    ).toBe(125);
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      "Freight Desk result",
+    ]);
+    expect(workbook.worksheets[0]?.getCell("A2").value).toBe("Carrier A");
+    expect(workbook.worksheets[0]?.getCell("D2").value).toBe(125);
   });
 
   it("creates a PDF document", async () => {
