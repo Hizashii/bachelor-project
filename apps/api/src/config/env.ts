@@ -27,6 +27,7 @@ const DEFAULT_MAX_UPLOAD_BYTES = 52_428_800;
 const MAX_UPLOAD_BYTES_LIMIT = 5_000_000_000;
 const MAX_PORT = 65_535;
 const DEFAULT_LOGIN_ATTEMPTS_PER_MINUTE = 10;
+const DEFAULT_REQUESTS_PER_MINUTE = 600;
 
 const postgresUrlSchema = z
   .string()
@@ -43,6 +44,7 @@ const environmentKeys = new Set([
   "SESSION_TTL_SECONDS",
   "TRUST_PROXY",
   "LOGIN_ATTEMPTS_PER_MINUTE",
+  "REQUESTS_PER_MINUTE",
   "MAX_UPLOAD_BYTES",
   "SHAREPOINT_MODE",
   "SHAREPOINT_TENANT_ID",
@@ -125,6 +127,12 @@ export const apiEnvironmentSchema = z
       .int()
       .min(1)
       .default(DEFAULT_LOGIN_ATTEMPTS_PER_MINUTE),
+    // How many requests of any kind one address may make per minute.
+    REQUESTS_PER_MINUTE: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(DEFAULT_REQUESTS_PER_MINUTE),
     MAX_UPLOAD_BYTES: z.coerce
       .number()
       .int()

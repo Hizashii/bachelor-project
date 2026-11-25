@@ -170,7 +170,9 @@ function fail(reply: FastifyReply, error: unknown) {
     500,
     "Something went wrong. Please try again.",
   ];
-  return reply.code(status).send({ message });
+  const detail =
+    error instanceof PriceTemplateWorkbookError ? ` ${error.message}` : "";
+  return reply.code(status).send({ message: message + detail });
 }
 
 export function registerFreightRoutes(

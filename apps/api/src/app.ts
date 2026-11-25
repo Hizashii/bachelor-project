@@ -35,7 +35,6 @@ export type BuildApiOptions = {
   storage?: StorageAdapter;
 };
 
-const REQUESTS_PER_MINUTE = 200;
 const HSTS_SECONDS = 31_536_000;
 const CONTENT_SECURITY_POLICY =
   "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
@@ -64,7 +63,7 @@ export function buildApi(options: BuildApiOptions): FastifyInstance {
   server.register(cookie);
   server.register(rateLimit, {
     global: true,
-    max: REQUESTS_PER_MINUTE,
+    max: environment.REQUESTS_PER_MINUTE,
     timeWindow: "1 minute",
   });
   server.addContentTypeParser(
