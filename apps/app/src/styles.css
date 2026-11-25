@@ -1122,3 +1122,17 @@ textarea {
 .best-row {
   animation: best-row-in 500ms var(--ease-out) 600ms backwards;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+[id] {
+  scroll-margin-top: 5rem;
+}
+
+.preview-panel {
+  animation: row-enter 220ms var(--ease-out) both;
+}

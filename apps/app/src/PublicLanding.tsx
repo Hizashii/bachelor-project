@@ -41,7 +41,7 @@ function Header({
   onLocaleChange: (locale: Locale) => void;
 }) {
   return (
-    <header className="bg-freight-night px-5 py-5 text-white sm:px-8 lg:px-10">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-freight-night/95 px-5 py-4 text-white backdrop-blur sm:px-8 lg:px-10">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-5">
         <div className="flex items-center gap-5">
           <NavLink className="grid gap-1" to="/" aria-label={copy.publicHome}>

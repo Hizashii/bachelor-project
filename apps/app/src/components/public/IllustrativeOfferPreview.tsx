@@ -1,5 +1,11 @@
+import { useState } from "react";
 import type { Copy, Locale } from "../../i18n";
-import { formatDkk, SAMPLE_OFFERS, type SampleOffer } from "./sampleOffers";
+import {
+  formatDkk,
+  SAMPLE_BASIS,
+  SAMPLE_OFFERS,
+  type SampleOffer,
+} from "./sampleOffers";
 
 type PreviewCopy = Pick<
   Copy,
@@ -17,7 +23,13 @@ type PreviewCopy = Pick<
   | "publicPreviewAnnualPrice"
   | "publicInputDelivery"
   | "carrier"
+  | "publicBasisShipments"
+  | "publicBasisZones"
+  | "publicBasisPeriod"
+  | "publicOfferReceived"
 >;
+
+type Tab = "compare" | "basis" | "offers";
 
 export function IllustrativeOfferPreview({
   copy,
@@ -26,14 +38,19 @@ export function IllustrativeOfferPreview({
   copy: PreviewCopy;
   locale: Locale;
 }) {
+  const [tab, setTab] = useState<Tab>("compare");
   return (
     <section
-      className="motion-safe:animate-freight-float overflow-hidden rounded-2xl border border-white/10 bg-freight-paper text-freight-ink shadow-freight-preview lg:mt-12"
+      className="overflow-hidden rounded-2xl border border-white/10 bg-freight-paper text-freight-ink shadow-freight-preview lg:mt-12"
       aria-labelledby="public-preview-title"
     >
       <PreviewHeader copy={copy} />
-      <PreviewTabs copy={copy} />
-      <PreviewGrid copy={copy} locale={locale} />
+      <PreviewTabs copy={copy} tab={tab} onTab={setTab} />
+      <div className="preview-panel" key={tab}>
+        {tab === "compare" ? <PreviewGrid copy={copy} locale={locale} /> : null}
+        {tab === "basis" ? <PreviewBasis copy={copy} locale={locale} /> : null}
+        {tab === "offers" ? <PreviewOffers copy={copy} /> : null}
+      </div>
       <PreviewNote copy={copy} />
     </section>
   );
@@ -60,15 +77,74 @@ function PreviewHeader({ copy }: { copy: PreviewCopy }) {
   );
 }
 
-function PreviewTabs({ copy }: { copy: PreviewCopy }) {
+function PreviewTabs({
+  copy,
+  tab,
+  onTab,
+}: {
+  copy: PreviewCopy;
+  tab: Tab;
+  onTab: (tab: Tab) => void;
+}) {
+  const tabs: [Tab, string][] = [
+    ["compare", copy.publicPreviewTabCompare],
+    ["basis", copy.publicPreviewTabBasis],
+    ["offers", copy.publicPreviewTabOffers],
+  ];
   return (
-    <div className="flex gap-7 border-b border-freight-ink/10 px-6 pt-4 text-sm text-freight-muted sm:px-7">
-      <span className="border-b-2 border-freight-gold pb-4 font-semibold text-freight-ink">
-        {copy.publicPreviewTabCompare}
-      </span>
-      <span className="pb-4">{copy.publicPreviewTabBasis}</span>
-      <span className="pb-4">{copy.publicPreviewTabOffers}</span>
+    <div
+      className="flex gap-7 border-b border-freight-ink/10 px-6 pt-4 text-sm sm:px-7"
+      role="tablist"
+    >
+      {tabs.map(([id, label]) => (
+        <button
+          aria-selected={tab === id}
+          className={`border-b-2 pb-4 transition-colors ${tab === id ? "border-freight-gold font-semibold text-freight-ink" : "border-transparent text-freight-muted hover:text-freight-ink"}`}
+          key={id}
+          role="tab"
+          type="button"
+          onClick={() => onTab(id)}
+        >
+          {label}
+        </button>
+      ))}
     </div>
+  );
+}
+
+function PreviewBasis({ copy, locale }: { copy: PreviewCopy; locale: Locale }) {
+  const facts = [
+    [
+      copy.publicBasisShipments,
+      new Intl.NumberFormat(locale).format(SAMPLE_BASIS.shipmentsPerYear),
+    ],
+    [copy.publicBasisZones, String(SAMPLE_BASIS.zones)],
+    [copy.publicBasisPeriod, SAMPLE_BASIS.period],
+  ];
+  return (
+    <dl className="divide-y divide-freight-ink/10 px-6 py-3 text-sm tabular-nums sm:px-7">
+      {facts.map(([label, value]) => (
+        <div className="flex justify-between py-4" key={label}>
+          <dt className="text-freight-muted">{label}</dt>
+          <dd className="font-semibold">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function PreviewOffers({ copy }: { copy: PreviewCopy }) {
+  return (
+    <ul className="divide-y divide-freight-ink/10 px-6 py-3 text-sm tabular-nums sm:px-7">
+      {SAMPLE_OFFERS.map((offer) => (
+        <li className="flex justify-between py-4" key={offer.carrier}>
+          <span>{offer.carrier}</span>
+          <span className="text-freight-muted">
+            {copy.publicOfferReceived} {offer.receivedOn}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -93,7 +169,7 @@ function PreviewGrid({ copy, locale }: { copy: PreviewCopy; locale: Locale }) {
 function PreviewRow({ offer, locale }: { offer: SampleOffer; locale: Locale }) {
   return (
     <div
-      className={`grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] items-center gap-2 py-4 text-xs tabular-nums sm:gap-3 sm:text-sm ${offer.best ? "best-row bg-freight-sand/80 font-semibold" : ""}`}
+      className={`grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] items-center gap-2 py-4 text-xs tabular-nums sm:gap-3 sm:text-sm ${offer.best ? "best-row bg-freight-sand/80 font-semibold" : "hover:bg-freight-sand/50"} transition-colors`}
     >
       <span>{offer.carrier}</span>
       <span>{formatDkk(offer.annualPriceDkk, locale)}</span>

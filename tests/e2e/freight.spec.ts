@@ -42,6 +42,11 @@ test("public homepage shows labelled sample numbers", async ({ page }) => {
     page.getByText("Eksempeldata · ikke rigtige tilbud"),
   ).toBeVisible();
   await expect(page.getByText("1.172.500 DKK").first()).toBeVisible();
+
+  await page.getByRole("tab", { name: "Grundlag" }).click();
+  await expect(page.getByText("12.400")).toBeVisible();
+  await page.getByRole("tab", { name: "Tilbud" }).click();
+  await expect(page.getByText("Modtaget 14.03")).toBeVisible();
 });
 
 test("staff lands on the empty tender workspace", async ({ page }) => {
