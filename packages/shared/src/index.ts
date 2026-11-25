@@ -4,4 +4,7 @@ export * from "./schemas/business.ts";
 export * from "./schemas/road.ts";
 export * from "./shipments/index.ts";
 export * from "./tariffs/index.ts";
+export * from "./templates/decimal.ts";
+export * from "./templates/registry.ts";
+export * from "./templates/viewSchemas.ts";
 export type * from "./types/business.ts";

@@ -503,3 +503,510 @@ h3 {
     gap: var(--space-4);
   }
 }
+
+.template-sheet-subline,
+.template-sheet-meta {
+  color: #617185;
+  font-size: 0.8rem;
+}
+.tender-workspace-screen {
+  max-width: 1440px;
+}
+.tender-workspace-heading,
+.tender-editor-heading,
+.tender-editor-footer {
+  align-items: start;
+  display: flex;
+  gap: 1.25rem;
+  justify-content: space-between;
+}
+.tender-workspace-heading {
+  margin-bottom: 1.5rem;
+}
+.tender-workspace-heading h1 {
+  margin-bottom: 0.45rem;
+}
+.tender-template-tabs,
+.tender-sheet-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.2rem;
+}
+.tender-template-tab,
+.tender-sheet-tab {
+  background: #fff;
+  border: 1px solid #d4d0c9;
+  color: #53677a;
+  flex: 0 0 auto;
+  padding: 0.8rem 1rem;
+  text-align: left;
+}
+.tender-template-tab.active,
+.tender-sheet-tab.active {
+  background: #0d263e;
+  border-color: #0d263e;
+  color: #fff;
+}
+.tender-sheet-tab {
+  display: grid;
+  gap: 0.25rem;
+}
+.tender-sheet-tab small {
+  color: #617185;
+  font-size: 0.72rem;
+}
+.tender-sheet-tab.active small {
+  color: #d6dee6;
+}
+.tender-editor {
+  background: #fff;
+  border: 1px solid #d4d0c9;
+  border-radius: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+.tender-editor-heading {
+  padding: 1.3rem 1.45rem;
+}
+.tender-editor-heading h2 {
+  margin-bottom: 0;
+}
+.tender-draft-scope {
+  color: #53677a;
+  font-size: 0.8rem;
+  max-width: 270px;
+  text-align: right;
+}
+.tender-vendor-field {
+  align-items: center;
+  background: #f5f3ef;
+  border-bottom: 1px solid #d4d0c9;
+  display: flex;
+  gap: 0.8rem;
+  padding: 0.85rem 1.45rem;
+}
+.tender-vendor-field label {
+  color: #53677a;
+  font-size: 0.85rem;
+  font-weight: 750;
+}
+.tender-vendor-field input {
+  background: #fff;
+  border: 1px solid #c9c0b3;
+  border-radius: 4px;
+  color: #102b44;
+  font: inherit;
+  min-width: 240px;
+  padding: 0.6rem 0.7rem;
+}
+.workbook-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.workbook-table-stack {
+  min-width: 920px;
+  padding: 0 1.45rem 1rem;
+}
+.workbook-source-notes {
+  background: #f5f3ef;
+  border-bottom: 1px solid #d4d0c9;
+  color: #53677a;
+  padding: 0.85rem 1.45rem;
+}
+.workbook-source-notes p {
+  font-size: 0.78rem;
+  margin: 0.15rem 0;
+}
+.workbook-section {
+  border: 1px solid #d9d5ce;
+  margin-top: 1rem;
+}
+.workbook-section-heading {
+  align-items: baseline;
+  background: #f5f3ef;
+  border-bottom: 1px solid #d9d5ce;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.75rem 0.9rem;
+}
+.workbook-section-heading h3 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+.workbook-section-heading span {
+  color: #7b8793;
+  font-size: 0.72rem;
+}
+.workbook-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  table-layout: fixed;
+}
+.workbook-table th,
+.workbook-table td {
+  border-bottom: 1px solid #e4e0d9;
+  border-right: 1px solid #eeeae4;
+  min-width: 112px;
+  padding: 0.55rem 0.6rem;
+  vertical-align: top;
+}
+.workbook-table thead th {
+  background: #0d263e;
+  color: #fff;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.workbook-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+.workbook-table thead th span,
+.workbook-table thead th small {
+  display: block;
+}
+.workbook-table thead th small {
+  color: #b8c4ce;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  margin-top: 0.2rem;
+  text-transform: none;
+}
+.workbook-group-row th {
+  background: #183b5b;
+  text-align: center;
+}
+.workbook-table tbody th {
+  color: #102b44;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+}
+.workbook-table tbody th span,
+.workbook-table tbody th small {
+  display: block;
+}
+.workbook-table tbody th small {
+  color: #8a96a1;
+  font-size: 0.65rem;
+  font-weight: 500;
+  margin-top: 0.15rem;
+}
+.workbook-identifying-column {
+  background: #fff;
+  left: 0;
+  min-width: 240px !important;
+  position: sticky;
+  width: 240px;
+  z-index: 2;
+}
+.workbook-table thead .workbook-identifying-column {
+  background: #0d263e;
+  z-index: 3;
+}
+.workbook-group-row .workbook-identifying-column {
+  background: #183b5b;
+}
+.workbook-table tbody td {
+  background: #fff;
+}
+.workbook-total-row th,
+.workbook-total-row td {
+  background: #f5f3ef !important;
+  border-top: 2px solid #c9c0b3;
+}
+.workbook-input {
+  background: #fffdf7;
+  border: 1px solid #bd9a58;
+  border-radius: 3px;
+  color: #102b44;
+  font: inherit;
+  min-width: 0;
+  padding: 0.52rem 0.55rem;
+  width: 100%;
+}
+.workbook-input:focus,
+.tender-vendor-field input:focus {
+  border-color: #a17a31;
+  outline: 3px solid rgb(161 122 49 / 18%);
+}
+.numeric-input {
+  text-align: right;
+}
+.workbook-readonly-cell {
+  color: #8c949b;
+}
+.workbook-readonly-value {
+  display: block;
+  min-height: 2.25rem;
+  padding: 0.52rem 0.55rem;
+}
+.workbook-structural-cell {
+  background: #f7f6f3;
+}
+.workbook-formula-cell {
+  background: #edf1f3;
+  border-left: 3px solid #aab6bf;
+}
+.workbook-cell-error {
+  color: #9c3c2d;
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  margin-top: 0.25rem;
+}
+.tender-editor-footer {
+  align-items: center;
+  border-top: 1px solid #d4d0c9;
+  padding: 1rem 1.45rem;
+}
+.tender-editor-notices {
+  display: grid;
+  gap: 0.35rem;
+}
+.tender-notice {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.tender-notice.saved {
+  color: #14766f;
+}
+.tender-notice.unsaved {
+  color: #896521;
+}
+.tender-notice.error,
+.tender-notice.conflict {
+  color: #9c3c2d;
+}
+.tender-no-submit {
+  color: #6c7882;
+  font-size: 0.75rem;
+  max-width: 570px;
+}
+.tender-editor-actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.7rem;
+}
+.tender-workspace-status {
+  color: #53677a;
+}
+.tender-next-step {
+  border-left: 3px solid #bd8c30;
+  color: #53677a;
+  padding-left: 0.8rem;
+}
+.document-tabs {
+  border-bottom: 1px solid #d4d0c9;
+  display: flex;
+  gap: 1.35rem;
+  margin-bottom: 1.25rem;
+}
+.document-tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  color: #53677a;
+  font-weight: 750;
+  padding: 0.7rem 0.15rem 0.8rem;
+}
+.document-tab.active {
+  border-bottom-color: #bd8c30;
+  color: #0d263e;
+}
+.template-registry-screen {
+  padding-bottom: 1rem;
+}
+.template-layout {
+  align-items: start;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(230px, 0.7fr) minmax(0, 1.7fr);
+}
+.template-list,
+.template-details,
+.template-empty-card {
+  padding: 0;
+}
+.template-list-item {
+  align-items: center;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #e1ddd6;
+  color: #102b44;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  text-align: left;
+  width: 100%;
+}
+.template-list-item:last-child {
+  border-bottom: 0;
+}
+.template-list-item:hover,
+.template-list-item.active {
+  background: #f8f2e7;
+}
+.template-list-item strong,
+.template-list-item small {
+  display: block;
+}
+.template-list-item small,
+.template-list-version {
+  color: #617185;
+  font-size: 0.78rem;
+  margin-top: 0.25rem;
+}
+.template-list-version {
+  margin-top: 0;
+  white-space: nowrap;
+}
+.template-empty-card {
+  padding: 1.6rem 1.5rem;
+}
+.template-empty-card h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+.template-empty-card p:last-child {
+  color: #53677a;
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+.template-status-badge {
+  background: #f7f1e4;
+  border: 1px solid #dcc89c;
+  border-radius: 999px;
+  color: #6b531f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.35rem 0.65rem;
+  text-transform: uppercase;
+}
+.template-metadata {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 1.35rem 1.5rem;
+}
+.template-metadata div {
+  display: grid;
+  gap: 0.35rem;
+}
+.template-metadata div:last-child {
+  grid-column: 1 / -1;
+}
+.template-metadata dt {
+  color: #8b6b31;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.template-metadata dd {
+  color: #4f6276;
+  margin: 0;
+}
+.template-reference {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+.template-contract-note {
+  background: #e9f3ee;
+  border-block: 1px solid #b8d8c5;
+  color: #175e4f;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.85rem 1.5rem;
+}
+.template-contract-note-secondary {
+  color: #386b5d;
+}
+.template-sheet-list {
+  padding: 0 1.5rem;
+}
+.template-sheet-row {
+  align-items: center;
+  border-bottom: 1px solid #e1ddd6;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1.6fr) minmax(100px, 0.7fr) minmax(
+      85px,
+      0.5fr
+    );
+  padding: 0.85rem 0;
+}
+.template-sheet-row:last-child {
+  border-bottom: 0;
+}
+.template-sheet-row > * {
+  display: block;
+}
+.template-review-notes {
+  border-top: 1px solid #e1ddd6;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+.template-review-notes .field-label {
+  margin-bottom: 0.65rem;
+}
+.template-review-notes ul {
+  color: #53677a;
+  line-height: 1.45;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.template-details > .file-list-heading {
+  align-items: start;
+}
+.template-layout {
+  grid-template-columns: 1fr;
+}
+.template-metadata {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.template-metadata {
+  grid-template-columns: 1fr;
+}
+.template-metadata div:last-child {
+  grid-column: auto;
+}
+.template-sheet-row {
+  align-items: start;
+  grid-template-columns: 1fr;
+}
+.tender-workspace-heading,
+.tender-editor-footer {
+  align-items: stretch;
+  flex-direction: column;
+}
+.tender-draft-scope {
+  max-width: none;
+  text-align: left;
+}
+.tender-vendor-field {
+  align-items: start;
+  flex-direction: column;
+}
+.tender-vendor-field input {
+  min-width: 0;
+  width: 100%;
+}
+.tender-editor-actions {
+  justify-content: flex-end;
+}
+.workbook-table-stack {
+  padding-inline: 0.7rem;
+}

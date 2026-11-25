@@ -122,7 +122,9 @@ const tenderInvitationBody = z
   })
   .strict();
 const tenderCompareBody = z
-  .object({ shipments: z.array(priceTemplateShipmentSchema).min(1).max(10_000) })
+  .object({
+    shipments: z.array(priceTemplateShipmentSchema).min(1).max(10_000),
+  })
   .strict();
 
 const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [

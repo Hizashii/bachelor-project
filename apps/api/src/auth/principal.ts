@@ -62,3 +62,25 @@ export function workflowPrincipalOf(context: AccessContext): Principal {
     },
   };
 }
+
+// Bid drafts and template bindings carry their own carrier and invitation checks in the
+// tender draft service, so the principal only states who is asking and in which role.
+// Every tender belongs to the consultancy, carriers included.
+export function tenderDraftPrincipalOf(user: AuthenticatedUser): Principal {
+  const staff = user.role !== "carrier";
+  return {
+    userId: user.id,
+    organizationId: CONSULTANCY_ORGANISATION_ID,
+    role: staff ? "staff" : "carrier",
+    carrierId: user.companyId ?? undefined,
+    allowedDestinationKeys: ["*"],
+    permissions: {
+      readFiles: true,
+      readOrganisationFiles: staff,
+      readTemplates: staff,
+      uploadFiles: true,
+      deleteFiles: false,
+      deleteOrganisationFiles: false,
+    },
+  };
+}

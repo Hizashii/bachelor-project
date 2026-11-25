@@ -5,9 +5,9 @@ import { ImportService } from "../imports/importService.ts";
 import { ImportLibrary } from "../imports/library.ts";
 import { Documents } from "../storage/documents.ts";
 import type { StorageAdapter } from "../storage/types.ts";
-import { BidService } from "../tenders/bidService.ts";
 import { PricingService } from "../tariffs/pricing.ts";
 import { TariffService } from "../tariffs/service.ts";
+import { BidService } from "../tenders/bidService.ts";
 import { TenderService } from "../tenders/service.ts";
 import type { FreightDependencies } from "./routes.ts";
 

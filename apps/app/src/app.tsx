@@ -13,6 +13,7 @@ import { FileManagement } from "./features/files/FileManagement";
 import { TenderForm } from "./features/tenders/TenderForm";
 import { TenderLanding } from "./features/tenders/TenderLanding";
 import { TenderOverview } from "./features/tenders/TenderOverview";
+import { TenderWorkspace } from "./features/tenders/TenderWorkspace";
 import { UploadScreen } from "./features/upload/UploadScreen";
 import type { Locale } from "./i18n";
 import { PublicLanding } from "./PublicLanding";
@@ -117,6 +118,10 @@ export function App(): ReactElement {
               <FileManagement locale={locale} />
             </RoleRoute>
           }
+        />
+        <Route
+          path="/tenders/:id/workspace"
+          element={<TenderWorkspace locale={locale} />}
         />
         <Route path="*" element={<Navigate to="/tenders" replace />} />
       </Routes>

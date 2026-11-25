@@ -53,14 +53,22 @@ export function TenderOverview({
         title={tender.name}
         description={tender.customerReference}
         action={
-          role === "carrier" ? null : (
+          <>
             <NavLink
-              className="button button-primary"
-              to={`/tenders/${tender.id}/edit`}
+              className="button button-secondary"
+              to={`/tenders/${tender.id}/workspace`}
             >
-              {copy.editTender}
+              {copy.tenderTemplateTab}
             </NavLink>
-          )
+            {role === "carrier" ? null : (
+              <NavLink
+                className="button button-primary"
+                to={`/tenders/${tender.id}/edit`}
+              >
+                {copy.editTender}
+              </NavLink>
+            )}
+          </>
         }
       />
       <div className="tender-detail-header">

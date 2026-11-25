@@ -23,8 +23,10 @@ import { createFreightServices } from "./freight/services.ts";
 import { serializeApiError } from "./http/errors.ts";
 import { registerStaticApp } from "./http/staticApp.ts";
 import { StorageError } from "./storage/errors.ts";
+import { PrincipalDocuments } from "./storage/principalDocuments.ts";
 import { registerFileRoutes } from "./storage/routes.ts";
 import type { StorageAdapter } from "./storage/types.ts";
+import { registerTenderDraftRoutes } from "./tenders/draftRoutes.ts";
 
 export type BuildApiOptions = {
   environment?: ApiEnvironment;
@@ -112,6 +114,7 @@ export function buildApi(options: BuildApiOptions): FastifyInstance {
         scope,
         createFreightServices(storage, () => accounts.activeCarriers()),
       );
+      registerTenderDraftRoutes(scope, new PrincipalDocuments(storage));
     }
     scope.register(async (admin) => {
       admin.addHook("preHandler", requireRole("master"));

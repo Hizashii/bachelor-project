@@ -17,6 +17,7 @@ const principal: Principal = {
   permissions: {
     readFiles: true,
     readOrganisationFiles: true,
+    readTemplates: true,
     uploadFiles: true,
     deleteFiles: true,
     deleteOrganisationFiles: true,
