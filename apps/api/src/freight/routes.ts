@@ -5,6 +5,7 @@
 import { createReadStream } from "node:fs";
 import {
   columnMappingSchema,
+  priceTemplateShipmentSchema,
   type PriceShipment,
   tariffSchema,
   tenderDraftInputSchema,
@@ -109,6 +110,9 @@ const tenderUpdateBody = z
   .object({ draft: tenderDraftInputSchema, ifMatch: z.string().min(1) })
   .strict();
 const tenderTransitionBody = z.object({ ifMatch: z.string().min(1) }).strict();
+const tenderCompareBody = z
+  .object({ shipments: z.array(priceTemplateShipmentSchema).min(1).max(10_000) })
+  .strict();
 
 const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
   [ImportAccessError, 404, "We could not find that file."],
@@ -279,6 +283,17 @@ function registerTenderRoutes(
     guarded((context, request) =>
       deps.bids.listSubmitted(context, idParams.parse(request.params).id),
     ),
+  );
+  app.post(
+    "/api/tenders/:id/compare",
+    guarded((context, request) => {
+      const body = tenderCompareBody.parse(request.body);
+      return deps.bids.compare(
+        context,
+        idParams.parse(request.params).id,
+        body.shipments,
+      );
+    }),
   );
 }
 

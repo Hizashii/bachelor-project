@@ -78,5 +78,15 @@ describe("carrier bid workflow", () => {
     const visible = await bids.listSubmitted(staff, tenderId);
     expect(visible).toHaveLength(1);
     expect(visible[0]?.versionNumber).toBe(2);
+
+    const comparison = await bids.compare(staff, tenderId, [
+      {
+        countryCode: "DE",
+        weightKg: 2,
+        numberOfShipments: 3,
+        economyShareBasisPoints: 5_000,
+      },
+    ]);
+    expect(comparison.candidates[0]?.result?.totalMinor).toBe(33_000);
   });
 });

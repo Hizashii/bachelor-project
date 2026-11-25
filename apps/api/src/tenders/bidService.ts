@@ -5,7 +5,10 @@ import { randomUUID } from "node:crypto";
 import {
   type BidVersion,
   bidVersionSchema,
+  calculatePriceTemplate,
   type PriceTemplate,
+  type PriceTemplateCalculation,
+  type PriceTemplateShipment,
   type Tender,
 } from "@freight-desk/shared";
 import type { AccessContext, PermissionChecker } from "../auth/permissions.ts";
@@ -26,6 +29,20 @@ type Dependencies = {
 };
 
 type StoredBid = { bid: BidVersion; fileId: string };
+
+export type TenderComparisonCandidate = {
+  carrierCompanyId: string;
+  bidVersionId: string;
+  vendorName: string | null;
+  result: PriceTemplateCalculation | null;
+  error: string | null;
+};
+
+export type TenderComparison = {
+  tenderId: string;
+  currency: string;
+  candidates: TenderComparisonCandidate[];
+};
 
 const BID_PREFIX = "bid-";
 const BID_PATTERN = /^bid-([0-9a-f-]{36})-v(\d+)\.json$/i;
@@ -84,6 +101,23 @@ export class BidService {
       }
     }
     return [...latest.values()];
+  }
+
+  async compare(
+    context: AccessContext,
+    tenderId: string,
+    shipments: readonly PriceTemplateShipment[],
+  ): Promise<TenderComparison> {
+    const savedTender = await this.deps.tenders.get(context, tenderId);
+    if (savedTender.tender.status === "open") {
+      throw new BidStateError("Close the tender before comparing bids.");
+    }
+    const bids = await this.listSubmitted(context, tenderId);
+    const candidates = bids.map((bid) =>
+      compareBid(bid, shipments, savedTender.tender.currency),
+    );
+    candidates.sort(compareCandidates);
+    return { tenderId, currency: savedTender.tender.currency, candidates };
   }
 
   private async latestForCarrier(
@@ -182,4 +216,58 @@ function buildBid(
     sourceTemplate: savedTender.tender.carrierRateTemplate,
     priceTemplate,
   });
+}
+
+function compareBid(
+  bid: BidVersion,
+  shipments: readonly PriceTemplateShipment[],
+  currency: string,
+): TenderComparisonCandidate {
+  const template = bid.priceTemplate;
+  if (!template) return unpricedBid(bid, "The bid has no price template.");
+  if (template.currency !== currency) {
+    return unpricedBid(bid, "The bid uses a different currency.");
+  }
+  try {
+    return {
+      carrierCompanyId: bid.carrierCompanyId,
+      bidVersionId: bid.id,
+      vendorName: template.vendorName,
+      result: calculatePriceTemplate(template, shipments),
+      error: null,
+    };
+  } catch (error) {
+    return unpricedBid(bid, errorMessage(error));
+  }
+}
+
+function unpricedBid(
+  bid: BidVersion,
+  error: string,
+): TenderComparisonCandidate {
+  return {
+    carrierCompanyId: bid.carrierCompanyId,
+    bidVersionId: bid.id,
+    vendorName: bid.priceTemplate?.vendorName ?? null,
+    result: null,
+    error,
+  };
+}
+
+function compareCandidates(
+  left: TenderComparisonCandidate,
+  right: TenderComparisonCandidate,
+): number {
+  if (!left.result && !right.result) {
+    return left.carrierCompanyId.localeCompare(right.carrierCompanyId);
+  }
+  if (!left.result) return 1;
+  if (!right.result) return -1;
+  return left.result.totalMinor - right.result.totalMinor;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "The bid could not be calculated.";
 }

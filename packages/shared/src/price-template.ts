@@ -43,6 +43,15 @@ export const priceTemplateSchema = z
   })
   .strict();
 
+export const priceTemplateShipmentSchema = z
+  .object({
+    countryCode: z.string().regex(COUNTRY_CODE),
+    weightKg: z.number().positive().max(1_000_000),
+    numberOfShipments: z.number().int().positive().max(1_000_000),
+    economyShareBasisPoints: z.number().int().min(0).max(MAX_BASIS_POINTS),
+  })
+  .strict();
+
 export type PriceTemplate = z.infer<typeof priceTemplateSchema>;
 export type PriceTemplateBand = z.infer<typeof priceTemplateBandSchema>;
 
