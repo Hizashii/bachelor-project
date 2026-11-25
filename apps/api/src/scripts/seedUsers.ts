@@ -12,7 +12,11 @@ import { createDatabase, verifyDatabase } from "../db/pool.ts";
 
 type Account = { name: string; email: string };
 
-const STAFF: Account = { name: "S&A Staff", email: "staff@freight.local" };
+const STAFF: Account = { name: "S&A Admin", email: "admin@freight.local" };
+const CONSULTANT: Account = {
+  name: "S&A Consultant",
+  email: "consultant@freight.local",
+};
 
 const CARRIERS: Account[] = [
   { name: "Test Carrier North ApS", email: "north@freight.local" },
@@ -23,7 +27,9 @@ const CARRIERS: Account[] = [
 const PASSWORD_BYTES = 12;
 
 // A new random password is made for each account and shown once; none is stored in code.
+// Set SEED_PASSWORD to use one password for every new account while testing locally.
 const newPassword = () =>
+  process.env.SEED_PASSWORD ??
   `${randomBytes(PASSWORD_BYTES).toString("base64url")}-1aA`;
 
 async function ensureCarrier(accounts: Accounts, name: string) {
@@ -39,7 +45,7 @@ async function ensureUser(
   input: {
     email: string;
     displayName: string;
-    role: "master" | "carrier";
+    role: "master" | "consultant" | "carrier";
     carrierId?: string;
   },
 ): Promise<void> {
@@ -71,6 +77,11 @@ async function seed(): Promise<void> {
       email: STAFF.email,
       displayName: STAFF.name,
       role: "master",
+    });
+    await ensureUser(accounts, credentials, {
+      email: CONSULTANT.email,
+      displayName: CONSULTANT.name,
+      role: "consultant",
     });
     for (const carrier of CARRIERS) {
       await ensureUser(accounts, credentials, {

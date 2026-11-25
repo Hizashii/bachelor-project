@@ -15,6 +15,8 @@ import { SubmitBidButton } from "./SubmitBidButton";
 import { WorkbookTable } from "./WorkbookTable";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
+// The workbook asks for the vendor name once, on the "Total cost" sheet.
+const VENDOR_CELL = "express-price|Total cost|C7";
 type TemplateKind = "customer-bidding" | "express-price";
 
 type ConfiguredTemplate = {
@@ -347,14 +349,12 @@ function TenderTemplateEditor({
           </button>
         ))}
       </div>
-      {item.template.kind === "express-price" && sheet.name !== "Total cost" ? (
+      {item.template.kind === "express-price" ? (
         <VendorInput
           sheet={sheet}
-          value={values[cellId(item.template.kind, sheet, "C7")] ?? ""}
-          error={errors[cellId(item.template.kind, sheet, "C7")]}
-          onChange={(value) =>
-            changeValue(cellId(item.template.kind, sheet, "C7"), value)
-          }
+          value={values[VENDOR_CELL] ?? ""}
+          error={errors[VENDOR_CELL]}
+          onChange={(value) => changeValue(VENDOR_CELL, value)}
           onBlur={() => undefined}
           copy={copy}
         />

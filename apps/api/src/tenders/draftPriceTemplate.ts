@@ -101,6 +101,8 @@ function price(
 }
 
 function vendorName(values: Values): string | null {
+  const main = values[`${TEMPLATE}|Total cost|C7`]?.trim();
+  if (main) return main;
   for (const sheet of countrySheets()) {
     const name = values[cell(sheet, "C7")]?.trim();
     if (name) return name;

@@ -40,6 +40,19 @@ describe("draft to price template", () => {
     ]);
   });
 
+  it("takes the vendor name from the Total cost sheet first", () => {
+    const template = draftToPriceTemplate(
+      {
+        ...countryValues("DK-DE", "40", "60"),
+        "express-price|Total cost|C7": "Main Name",
+        "express-price|DK-DE|C7": "Old Name",
+      },
+      "fallback",
+    );
+
+    expect(template.vendorName).toBe("Main Name");
+  });
+
   it("names the country and band when a price is missing", () => {
     const values = countryValues("DK-SE", "40", "60");
     values["express-price|DK-SE|D20"] = "";

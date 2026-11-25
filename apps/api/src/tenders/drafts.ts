@@ -576,8 +576,7 @@ function editableCell(
 ): boolean {
   if (
     templateId === "express-price" &&
-    sheetName !== "Total cost" &&
-    (address === "C7" || address === "D7")
+    (address === "C7" || (sheetName !== "Total cost" && address === "D7"))
   )
     return true;
   const sheet = sheets.find((item) => item.name === sheetName);

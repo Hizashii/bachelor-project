@@ -18,8 +18,12 @@ On Windows PowerShell, use `npm.cmd` if the execution policy blocks
 
 ## Sign in and test with real workbooks
 
-1. Run `npm run db:migrate`, then `npm run seed:users`. This creates one staff
-   login and three carrier logins (printed in the terminal). It adds no tenders.
+1. Run `npm run db:migrate`, then `npm run seed:users`. This creates an admin
+   (`admin@freight.local`), a consultant (`consultant@freight.local`) and three
+   carriers (`north@`, `south@`, `east@freight.local`), with a random password
+   for each, printed once. To use one password while testing locally, run
+   `SEED_PASSWORD=... npm run seed:users` (PowerShell: set `$env:SEED_PASSWORD`
+   first). It adds no tenders.
 2. As staff, create a tender, invite the carriers and open it.
 3. As a carrier, download the price workbook, fill it in and upload it. Ready
    made, filled workbooks are in `tests/fixtures/express/` (three valid, three
