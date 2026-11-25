@@ -20,6 +20,8 @@ import {
 } from "../storage/localStorage.ts";
 import type { StorageDestination } from "../storage/types.ts";
 import { TariffService } from "../tariffs/service.ts";
+import { TenderService } from "../tenders/service.ts";
+import { seedDemoTender } from "./seedDemoTender.ts";
 
 const DEMO_PASSWORDS = {
   staff: "Demo-Staff-2026!",
@@ -229,21 +231,21 @@ async function seed(): Promise<void> {
       password: DEMO_PASSWORDS.staff,
       role: "master",
     });
-    await ensureUser(accounts, credentials, {
+    const northlineUserId = await ensureUser(accounts, credentials, {
       email: "demo.northline@freight.local",
       displayName: "DEMO Northline Pricing",
       password: DEMO_PASSWORDS.northline,
       role: "carrier",
       carrierId: carrierIds.northline,
     });
-    await ensureUser(accounts, credentials, {
+    const sydfragtUserId = await ensureUser(accounts, credentials, {
       email: "demo.sydfragt@freight.local",
       displayName: "DEMO Sydfragt Pricing",
       password: DEMO_PASSWORDS.sydfragt,
       role: "carrier",
       carrierId: carrierIds.sydfragt,
     });
-    await ensureUser(accounts, credentials, {
+    const balticUserId = await ensureUser(accounts, credentials, {
       email: "demo.baltic@freight.local",
       displayName: "DEMO Baltic Pricing",
       password: DEMO_PASSWORDS.baltic,
@@ -335,6 +337,25 @@ async function seed(): Promise<void> {
         staffId,
       ),
     );
+    await seedDemoTender({
+      storage,
+      documents,
+      tenders: new TenderService({ documents, permissions }),
+      staff: context,
+      carriers: [
+        {
+          userId: northlineUserId,
+          companyId: carrierIds.northline,
+          priceStep: 0,
+        },
+        {
+          userId: sydfragtUserId,
+          companyId: carrierIds.sydfragt,
+          priceStep: 3,
+        },
+        { userId: balticUserId, companyId: carrierIds.baltic, priceStep: 6 },
+      ],
+    });
     const demoDirectory = join(process.cwd(), "data", "demo");
     const workbookPath = join(demoDirectory, DEMO_WORKBOOK);
     await writeDemoWorkbook(workbookPath);
