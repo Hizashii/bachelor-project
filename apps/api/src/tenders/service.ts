@@ -126,6 +126,53 @@ export class TenderService {
     return { tender, etag: String(tender.revision), fileId: file.id };
   }
 
+  async open(
+    context: AccessContext,
+    id: string,
+    ifMatch: string,
+  ): Promise<SavedTender> {
+    return this.transition(context, id, ifMatch, "draft", "open", {
+      openedAtUtc: new Date().toISOString(),
+    });
+  }
+
+  async close(
+    context: AccessContext,
+    id: string,
+    ifMatch: string,
+  ): Promise<SavedTender> {
+    return this.transition(context, id, ifMatch, "open", "closed", {
+      closedAtUtc: new Date().toISOString(),
+    });
+  }
+
+  private async transition(
+    context: AccessContext,
+    id: string,
+    ifMatch: string,
+    from: TenderStatus,
+    status: TenderStatus,
+    dates: Partial<Pick<Tender, "openedAtUtc" | "closedAtUtc">>,
+  ): Promise<SavedTender> {
+    this.allow(context, "tender:edit");
+    const current = await this.get(context, id);
+    if (current.tender.status !== from) {
+      throw new TenderStateError(`Only a ${from} tender can be changed.`);
+    }
+    if (ifMatch !== current.etag) {
+      throw new StorageError("conflict", "Reload before saving again.");
+    }
+    const tender = {
+      ...current.tender,
+      ...dates,
+      status,
+      revision: current.tender.revision + 1,
+      updatedAtUtc: new Date().toISOString(),
+    };
+    const file = await this.write(context, tender);
+    return { tender, etag: String(tender.revision), fileId: file.id };
+  }
+
   private allow(
     context: AccessContext,
     action: FreightAction,

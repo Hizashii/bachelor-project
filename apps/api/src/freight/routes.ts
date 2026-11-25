@@ -28,6 +28,15 @@ import {
   sweepExpired,
 } from "../imports/tempFiles.ts";
 import { StorageError } from "../storage/errors.ts";
+import {
+  BidAccessError,
+  type BidService,
+  BidStateError,
+} from "../tenders/bidService.ts";
+import {
+  PriceTemplateWorkbookError,
+  type PriceTemplateWorkbookInput,
+} from "../tenders/priceTemplateExcel.ts";
 import type { PricingService } from "../tariffs/pricing.ts";
 import {
   TariffAccessError,
@@ -50,6 +59,7 @@ export type FreightDependencies = {
   tariffs: TariffService;
   pricing: PricingService;
   tenders: TenderService;
+  bids: BidService;
 };
 
 const SWEEP_EVERY_MS = 5 * 60_000;
@@ -98,6 +108,7 @@ const tenderDraftBody = z.object({ draft: tenderDraftInputSchema }).strict();
 const tenderUpdateBody = z
   .object({ draft: tenderDraftInputSchema, ifMatch: z.string().min(1) })
   .strict();
+const tenderTransitionBody = z.object({ ifMatch: z.string().min(1) }).strict();
 
 const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
   [ImportAccessError, 404, "We could not find that file."],
@@ -111,6 +122,13 @@ const FRIENDLY: [new (...args: never[]) => Error, number, string][] = [
     TenderStateError,
     409,
     "That tender cannot be changed in its current state.",
+  ],
+  [BidAccessError, 403, "You do not have access to that bid."],
+  [BidStateError, 409, "That bid cannot be changed right now."],
+  [
+    PriceTemplateWorkbookError,
+    422,
+    "We could not read the carrier price template.",
   ],
   [UnreadableFileError, 422, "We could not read that file. Use .xlsx or .csv."],
   [MappingError, 422, "Some required columns are not matched yet."],
@@ -222,6 +240,45 @@ function registerTenderRoutes(
         body.ifMatch,
       );
     }),
+  );
+  app.post(
+    "/api/tenders/:id/open",
+    guarded((context, request) => {
+      const body = tenderTransitionBody.parse(request.body);
+      return deps.tenders.open(
+        context,
+        idParams.parse(request.params).id,
+        body.ifMatch,
+      );
+    }),
+  );
+  app.post(
+    "/api/tenders/:id/close",
+    guarded((context, request) => {
+      const body = tenderTransitionBody.parse(request.body);
+      return deps.tenders.close(
+        context,
+        idParams.parse(request.params).id,
+        body.ifMatch,
+      );
+    }),
+  );
+  app.post(
+    "/api/tenders/:id/bids",
+    guarded((context, request) => {
+      if (!Buffer.isBuffer(request.body)) throw new z.ZodError([]);
+      return deps.bids.submit(
+        context,
+        idParams.parse(request.params).id,
+        request.body as unknown as PriceTemplateWorkbookInput,
+      );
+    }),
+  );
+  app.get(
+    "/api/tenders/:id/bids",
+    guarded((context, request) =>
+      deps.bids.listSubmitted(context, idParams.parse(request.params).id),
+    ),
   );
 }
 

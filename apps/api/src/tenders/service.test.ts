@@ -120,4 +120,17 @@ describe("tender workflow", () => {
       TenderAccessError,
     );
   });
+
+  it("opens and closes a draft with revision checks", async () => {
+    const { tenders } = setup();
+    const created = await tenders.create(staff, input);
+
+    const opened = await tenders.open(staff, created.tender.id, created.etag);
+    expect(opened.tender.status).toBe("open");
+    expect(opened.etag).toBe("2");
+
+    const closed = await tenders.close(staff, created.tender.id, opened.etag);
+    expect(closed.tender.status).toBe("closed");
+    expect(closed.tender.closedAtUtc).not.toBeNull();
+  });
 });

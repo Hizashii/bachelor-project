@@ -21,7 +21,8 @@ export type FreightAction =
   | "price:calculate"
   | "tender:read"
   | "tender:create"
-  | "tender:edit";
+  | "tender:edit"
+  | "tender:bid";
 
 export type ResourceRef = {
   organisationId: string;
@@ -41,6 +42,7 @@ const CARRIER_ACTIONS: readonly FreightAction[] = [
   "tariff:submit",
   "tariff:read",
   "tender:read",
+  "tender:bid",
 ];
 
 export const permissions: PermissionChecker = {

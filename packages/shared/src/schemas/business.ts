@@ -1,6 +1,7 @@
 // This file defines validated Freight Desk resource models, not API handlers.
 
 import { z } from "zod";
+import { priceTemplateSchema } from "../price-template.ts";
 import {
   basisPointsSchema,
   currencyCodeSchema,
@@ -157,6 +158,7 @@ export const bidVersionSchema = z
     supersedesVersionId: entityIdSchema.nullable(),
     withdrawnAtUtc: utcDateTimeSchema.nullable(),
     sourceTemplate: excelTemplateSchema.nullable(),
+    priceTemplate: priceTemplateSchema.nullable(),
   })
   .strict();
 
