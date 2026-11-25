@@ -66,6 +66,9 @@ export class BidService {
     tenderId: string,
     workbook: PriceTemplateWorkbookInput,
   ): Promise<BidVersion> {
+    // Check who is asking and whether bidding is open before reading the upload.
+    this.allowBid(context);
+    assertOpen((await this.deps.tenders.get(context, tenderId)).tender);
     const template = await parsePriceTemplateWorkbook(
       workbook,
       context.organisationId,

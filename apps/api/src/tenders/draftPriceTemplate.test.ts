@@ -50,4 +50,24 @@ describe("draft to price template", () => {
   it("refuses an empty draft", () => {
     expect(() => draftToPriceTemplate({}, "x")).toThrow(/at least one country/);
   });
+
+  it("refuses a price that reads two ways instead of guessing", () => {
+    const values = countryValues("DK-DE", "40", "60");
+    values["express-price|DK-DE|C14"] = "1,500";
+
+    expect(() => draftToPriceTemplate(values, "x")).toThrow(/DK-DE.*two ways/);
+  });
+
+  it("does not drop a country or a fee that holds text instead of a number", () => {
+    const typo = countryValues("DK-FR", "abc", "abc");
+    expect(() => draftToPriceTemplate(typo, "x")).toThrow(
+      /DK-FR.*not a number/,
+    );
+
+    const fee = {
+      ...countryValues("DK-FR", "40", "60"),
+      "express-price|DK-FR|E37": "fifty",
+    };
+    expect(() => draftToPriceTemplate(fee, "x")).toThrow(/DK-FR.*fifty/);
+  });
 });
