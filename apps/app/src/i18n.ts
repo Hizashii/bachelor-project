@@ -245,7 +245,7 @@ const localeCopy = {
     cloudUnavailable: "Lagring er midlertidigt utilgængelig.",
     requestFailed: "Anmodningen kunne ikke gennemføres.",
     localStorageActive:
-      "Lokal demonstrationslagring er aktiv. Data gemmes på denne computer.",
+      "Lokal lagring er aktiv. Data gemmes på denne computer.",
     confirmRemove: "Vil du fjerne denne fil fra virksomhedens lagring?",
     compare: "Sammenlign",
     carrierPortal: "Din prisliste",
@@ -666,7 +666,7 @@ const localeCopy = {
     cloudUnavailable: "Storage is temporarily unavailable.",
     requestFailed: "The request could not be completed.",
     localStorageActive:
-      "Local demonstration storage is active. Data is stored on this computer.",
+      "Local storage is active. Data is stored on this computer.",
     confirmRemove: "Remove this file from company storage?",
     compare: "Compare",
     carrierPortal: "Your price list",

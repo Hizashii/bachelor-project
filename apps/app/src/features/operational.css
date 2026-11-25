@@ -126,6 +126,61 @@
   gap: var(--space-2);
 }
 
+.comparison-panel {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.comparison-line {
+  align-items: end;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+.comparison-line label {
+  align-items: stretch;
+  display: grid;
+  font-size: 0.85rem;
+  gap: var(--space-1);
+}
+
+.comparison-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.comparison-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.comparison-table th,
+.comparison-table td {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3);
+  text-align: left;
+}
+
+.comparison-table td:last-child,
+.comparison-table th:last-child {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.comparison-best {
+  background: #efe6d4;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .comparison-line {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .tender-overview-screen > .button {
   margin-top: var(--space-5);
 }

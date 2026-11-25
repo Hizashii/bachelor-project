@@ -1,8 +1,8 @@
 # Freight Desk
 
 Freight Desk is the Slinkert & Aarøe logistics platform. The current product
-shell contains a public Astro site, a React/Vite application with demo compare
-and carrier screens, and a Fastify API foundation.
+shell contains a public Astro site, a React/Vite application for tenders,
+carrier bids and comparison, and a Fastify API.
 
 ## Run it in 15 minutes
 
@@ -15,6 +15,17 @@ and carrier screens, and a Fastify API foundation.
 
 On Windows PowerShell, use `npm.cmd` if the execution policy blocks
 `npm.ps1`.
+
+## Sign in and test with real workbooks
+
+1. Run `npm run db:migrate`, then `npm run seed:users`. This creates one staff
+   login and three carrier logins (printed in the terminal). It adds no tenders.
+2. As staff, create a tender, invite the carriers and open it.
+3. As a carrier, download the price workbook, fill it in and upload it. Ready
+   made, filled workbooks are in `tests/fixtures/express/` (three valid, three
+   broken). `npm run fixtures:excel` rebuilds them from S&A's real template in
+   `database/excel/`; the prices in them are made up.
+4. As staff, close the tender, compare the bids and download the result.
 
 The API health check is available at `http://127.0.0.1:3000/health` after the
 development processes start.

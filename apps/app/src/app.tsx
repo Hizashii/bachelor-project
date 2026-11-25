@@ -117,7 +117,14 @@ export function App(): ReactElement {
         />
         <Route
           path="/tenders/:id/workspace"
-          element={<TenderWorkspace locale={locale} />}
+          element={
+            <RoleRoute
+              userRole={auth.user.role}
+              allowedRoles={["consultant", "master"]}
+            >
+              <TenderWorkspace locale={locale} />
+            </RoleRoute>
+          }
         />
         <Route path="*" element={<Navigate to="/tenders" replace />} />
       </Routes>
