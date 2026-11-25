@@ -304,8 +304,16 @@ async function submitBid(page: Page, fileName: string) {
   await page.getByRole("button", { name: "Send til godkendelse" }).click();
 }
 
+async function saveBasis(page: Page, country: string, shipments: string) {
+  await page.getByLabel("Land").selectOption(country);
+  await page.getByLabel(`${country} 0-1 kg Antal forsendelser`).fill(shipments);
+  await page.getByRole("button", { name: "Gem grundlag" }).click();
+  await expect(page.getByText("Grundlag gemt.")).toBeVisible();
+}
+
 async function signInAs(page: Page, email: string) {
   await page.getByRole("button", { name: "Log ud" }).click();
+  await expect(page).toHaveURL(/\/login$/);
   await logIn(page, email);
 }
 
@@ -330,15 +338,21 @@ test("tender lifecycle: carriers upload real workbooks, staff compare and export
 
   await signInAs(page, "staff@example.test");
   await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
+  await saveBasis(page, "DE", "100");
   await page.getByRole("button", { name: "Luk udbud" }).click();
-  await page.getByLabel("Forsendelse", { exact: true }).fill("100");
   await page.getByRole("button", { name: "Sammenlign", exact: true }).click();
-  const north = page.getByRole("row", { name: /Test Carrier North/ });
+  const results = page.locator(".comparison-table").first();
+  const north = results.getByRole("row", { name: /Test Carrier North/ });
   await expect(north).toContainText("5500.00 DKK");
   await expect(north).toContainText("Billigst");
   await expect(
-    page.getByRole("row", { name: /Test Carrier South/ }),
+    results.getByRole("row", { name: /Test Carrier South/ }),
   ).toContainText("5525.00 DKK");
+
+  const pickup = page.getByRole("region", { name: "Prisoversigt" });
+  await expect(pickup.getByRole("row", { name: /^0-1 kg/ })).toContainText(
+    "21.00",
+  );
 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download resultat Excel" }).click();
@@ -347,6 +361,15 @@ test("tender lifecycle: carriers upload real workbooks, staff compare and export
   expect(workbook.worksheets[0]?.getCell("A2").value).toBe(
     "Test Carrier North",
   );
+  expect(workbook.getWorksheet("Per country")?.getCell("A2").value).toBe("DE");
+
+  await north.getByRole("button", { name: "Tildel" }).click();
+  await expect(page.getByText("Udbuddet er tildelt.")).toBeVisible();
+  await expect(north).toContainText("Tildelt");
+
+  await signInAs(page, "dana@bluefjord.test");
+  await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
+  await expect(page.getByText(/Tillykke|tildelt en anden/)).toBeVisible();
 });
 
 test("tender workspace: staff saves a price and it survives a reload", async ({
@@ -453,11 +476,14 @@ test("carriers fill the express workbook in the app and staff compare the result
 
   await signInAs(page, "staff@example.test");
   await page.getByRole("link", { name: "Online pricing 2027" }).click();
+  await saveBasis(page, "DE", "100");
   await page.getByRole("button", { name: "Luk udbud" }).click();
-  await page.getByLabel("Land").selectOption("DE");
   await page.getByRole("button", { name: "Sammenlign", exact: true }).click();
   await expect(
-    page.getByRole("row", { name: /Blue Fjord Online/ }),
+    page
+      .locator(".comparison-table")
+      .first()
+      .getByRole("row", { name: /Blue Fjord Online/ }),
   ).toContainText("1000.00 DKK");
 });
 
@@ -505,4 +531,65 @@ test("a signed-out visitor to a deep link gets the login page, then the page", a
   await visitor.getByLabel("Password").fill(PASSWORD);
   await visitor.getByRole("button", { name: "Log in" }).click();
   await expect(visitor.getByLabel("Navn på udbud")).toBeVisible();
+});
+
+test("an administrator adds a carrier and invites a user who can then sign in", async ({
+  page,
+}) => {
+  await page.getByRole("link", { name: "Brugere" }).click();
+  await page.getByLabel("Firmanavn").fill("New Haul ApS");
+  await page.getByRole("button", { name: "Tilføj transportør" }).click();
+  await expect(page.locator("li", { hasText: "New Haul ApS" })).toBeVisible();
+
+  await page.getByLabel("E-mail", { exact: true }).fill("kim@newhaul.test");
+  await page.getByLabel("Navn", { exact: true }).fill("Kim Haul");
+  await page.locator("select").last().selectOption({ label: "New Haul ApS" });
+  await page.getByRole("button", { name: "Inviter bruger" }).click();
+  const link = await page.getByLabel("Engangslink").last().inputValue();
+  expect(link).toContain("/accept-invitation?token=");
+
+  await page.getByRole("button", { name: "Log ud" }).click();
+  const url = new URL(link);
+  await page.goto(url.pathname + url.search);
+  await page.getByLabel("New password").fill("a-Long-Enough-Passphrase-1");
+  await page
+    .getByLabel("Repeat the password")
+    .fill("a-Long-Enough-Passphrase-1");
+  await page.getByRole("button", { name: "Save password" }).click();
+  await page.goto("/login");
+  await page.getByLabel("E-mail").fill("kim@newhaul.test");
+  await page.getByLabel("Password").fill("a-Long-Enough-Passphrase-1");
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page).toHaveURL(/\/tenders$/);
+  await expect(page.getByRole("link", { name: "Brugere" })).toHaveCount(0);
+});
+
+test("only an administrator can open the user screen", async ({ page }) => {
+  await signInAs(page, "dana@bluefjord.test");
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/tenders$/);
+});
+
+test("staff import a shipment basis from the express workbook", async ({
+  page,
+}) => {
+  await createOpenTender(page, "Basis import 2027");
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("DK-SE");
+  sheet.getCell("B14").value = "0-1 kg";
+  sheet.getCell("E14").value = 250;
+  sheet.getCell("J14").value = 0.25;
+  const file = Buffer.from(await workbook.xlsx.writeBuffer());
+  await page.locator('input[type="file"][hidden]').setInputFiles({
+    name: "volumes.xlsx",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    buffer: file,
+  });
+  await expect(page.getByText(/Grundlag hentet fra Excel/)).toBeVisible();
+  await page.getByLabel("Land").selectOption("SE");
+  await expect(page.getByLabel("SE 0-1 kg Antal forsendelser")).toHaveValue(
+    "250",
+  );
+  await expect(page.getByLabel("SE 0-1 kg % Economy")).toHaveValue("25");
 });

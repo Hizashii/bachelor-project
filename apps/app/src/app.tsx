@@ -7,6 +7,7 @@ import {
 } from "./auth/AuthScreens";
 import { type UserRole, useAuth } from "./auth/auth";
 import { AppShell } from "./components/AppShell";
+import { AdminUsers } from "./features/admin/AdminUsers";
 import { CarrierPortal } from "./features/carriers/CarrierPortal";
 import { CompareOffers } from "./features/compare/CompareOffers";
 import { FileManagement } from "./features/files/FileManagement";
@@ -117,6 +118,14 @@ export function App(): ReactElement {
         <Route
           path="/tenders/:id/workspace"
           element={<TenderWorkspace locale={locale} />}
+        />
+        <Route
+          path="/admin"
+          element={
+            <RoleRoute userRole={auth.user.role} allowedRoles={["master"]}>
+              <AdminUsers locale={locale} />
+            </RoleRoute>
+          }
         />
         <Route path="*" element={<Navigate to="/tenders" replace />} />
       </Routes>

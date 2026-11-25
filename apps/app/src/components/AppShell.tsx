@@ -99,6 +99,11 @@ function PrimaryNav({
       <NavLink className="nav-link" to="/carriers">
         {role === "carrier" ? copy.carrierPortal : copy.carriers}
       </NavLink>
+      {role === "master" ? (
+        <NavLink className="nav-link" to="/admin">
+          {copy.usersAdmin}
+        </NavLink>
+      ) : null}
     </nav>
   );
 }

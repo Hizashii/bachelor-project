@@ -1,101 +1,90 @@
-// Compares the submitted carrier bids for a closed tender and exports the result.
-// The API does the pricing; this screen collects the shipment lines and shows the totals.
+// Compares the submitted carrier bids on the saved shipment basis, shows the totals per
+// country, lets staff award the winner, and exports the result. The API does the pricing.
 
-import { verifiedTemplateView } from "@freight-desk/shared";
 import { useState } from "react";
-import { downloadFile, postJson, saveBlob } from "../../api/client";
+import {
+  ApiError,
+  apiFetch,
+  downloadFile,
+  postJson,
+  saveBlob,
+} from "../../api/client";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
-
-const BASIS_POINTS_PER_PERCENT = 100;
-const COUNTRY_CODES = verifiedTemplateView("express-price")
-  .sheets.map((sheet) => sheet.name)
-  .filter((name) => name.startsWith("DK-"))
-  .map((name) => name.slice(3));
+import { BidPricesPanel } from "./BidPricesPanel";
+import type { TenderRecord } from "./tenderTypes";
 
 type Copy = ReturnType<typeof getCopy>;
 
-type Line = {
-  id: string;
-  countryCode: string;
-  weightKg: string;
-  count: string;
-  economyPercent: string;
+type Candidate = {
+  bidVersionId: string;
+  carrierCompanyId: string;
+  vendorName: string | null;
+  result: {
+    totalMinor: number;
+    lines: { countryCode: string; totalMinor: number }[];
+  } | null;
+  error: string | null;
 };
 
-type Comparison = {
-  currency: string;
-  candidates: {
-    bidVersionId: string;
-    carrierCompanyId: string;
-    vendorName: string | null;
-    result: { totalMinor: number } | null;
-    error: string | null;
-  }[];
-};
+type Comparison = { currency: string; candidates: Candidate[] };
 
-const newLine = (): Line => ({
-  id: crypto.randomUUID(),
-  countryCode: COUNTRY_CODES[0] ?? "DE",
-  weightKg: "1",
-  count: "100",
-  economyPercent: "50",
-});
-
-function toShipments(lines: Line[]) {
-  return lines.map((line) => ({
-    countryCode: line.countryCode,
-    weightKg: Number(line.weightKg),
-    numberOfShipments: Number(line.count),
-    economyShareBasisPoints:
-      Number(line.economyPercent) * BASIS_POINTS_PER_PERCENT,
-  }));
-}
-
-export function TenderComparison({
-  locale,
-  tenderId,
-}: {
+type Props = {
   locale: Locale;
-  tenderId: string;
-}) {
+  record: TenderRecord;
+  onChanged: (record: TenderRecord) => void;
+};
+
+const money = (minor: number) => (minor / 100).toFixed(2);
+
+export function TenderComparison({ locale, record, onChanged }: Props) {
   const copy = getCopy(locale);
-  const [lines, setLines] = useState<Line[]>([newLine()]);
+  const tenderId = record.tender.id;
   const [result, setResult] = useState<Comparison>();
   const [message, setMessage] = useState("");
+  const fail = (error: unknown) =>
+    setMessage(error instanceof ApiError ? error.message : copy.requestFailed);
 
   async function compare() {
     try {
-      const shipments = toShipments(lines);
       setResult(
-        await postJson<Comparison>(`/api/tenders/${tenderId}/compare`, {
-          shipments,
-        }),
+        await apiFetch<Comparison>(`/api/tenders/${tenderId}/compare-basis`),
       );
       setMessage("");
-    } catch {
-      setMessage(copy.requestFailed);
+    } catch (error) {
+      fail(error);
     }
   }
 
   async function exportResult(format: "xlsx" | "pdf") {
     try {
-      await download(format);
-    } catch {
-      setMessage(copy.requestFailed);
+      const blob = await downloadFile(
+        `/api/tenders/${tenderId}/export.${format}`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        },
+      );
+      saveBlob(blob, `tender-${tenderId}-comparison.${format}`);
+    } catch (error) {
+      fail(error);
     }
   }
 
-  async function download(format: "xlsx" | "pdf") {
-    const blob = await downloadFile(
-      `/api/tenders/${tenderId}/export.${format}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ shipments: toShipments(lines) }),
-      },
-    );
-    saveBlob(blob, `tender-${tenderId}-comparison.${format}`);
+  async function award(carrierCompanyId: string, reason: string) {
+    try {
+      onChanged(
+        await postJson<TenderRecord>(`/api/tenders/${tenderId}/award`, {
+          carrierCompanyId,
+          reason,
+          ifMatch: record.etag,
+        }),
+      );
+      setMessage(copy.awardDone);
+    } catch (error) {
+      fail(error);
+    }
   }
 
   return (
@@ -104,15 +93,7 @@ export function TenderComparison({
       className="comparison-panel"
     >
       <h3 id="tender-comparison-title">{copy.compare}</h3>
-      <Lines copy={copy} lines={lines} onChange={setLines} />
       <div className="comparison-actions">
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={() => setLines([...lines, newLine()])}
-        >
-          {copy.addLine}
-        </button>
         <button
           className="button button-primary"
           type="button"
@@ -136,117 +117,109 @@ export function TenderComparison({
         </button>
       </div>
       {message ? <p role="alert">{message}</p> : null}
-      {result ? <ResultTable copy={copy} result={result} /> : null}
+      {result ? (
+        <ResultTable
+          copy={copy}
+          result={result}
+          record={record}
+          onAward={award}
+        />
+      ) : null}
+      {result ? <BidPricesPanel locale={locale} tenderId={tenderId} /> : null}
     </section>
   );
 }
 
-function Lines({
+function ResultTable({
   copy,
-  lines,
-  onChange,
+  result,
+  record,
+  onAward,
 }: {
   copy: Copy;
-  lines: Line[];
-  onChange: (lines: Line[]) => void;
+  result: Comparison;
+  record: TenderRecord;
+  onAward: (carrierCompanyId: string, reason: string) => void;
 }) {
-  return lines.map((line, index) => (
-    <LineRow
-      copy={copy}
-      key={line.id}
-      line={line}
-      onChange={(next) =>
-        onChange(lines.map((l, i) => (i === index ? next : l)))
-      }
-      onRemove={
-        lines.length > 1
-          ? () => onChange(lines.filter((_, i) => i !== index))
-          : undefined
-      }
-    />
-  ));
-}
-
-function LineRow({
-  copy,
-  line,
-  onChange,
-  onRemove,
-}: {
-  copy: Copy;
-  line: Line;
-  onChange: (line: Line) => void;
-  onRemove?: () => void;
-}) {
-  const field = (key: keyof Line) => ({
-    value: line[key],
-    onChange: (event: { target: { value: string } }) =>
-      onChange({ ...line, [key]: event.target.value }),
-  });
-  return (
-    <div className="comparison-line">
-      <label>
-        {copy.country}
-        <select {...field("countryCode")}>
-          {COUNTRY_CODES.map((code) => (
-            <option key={code}>{code}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        {copy.calcWeight}
-        <input type="number" min="0.01" step="any" {...field("weightKg")} />
-      </label>
-      <label>
-        {copy.shipmentTitle}
-        <input type="number" min="1" {...field("count")} />
-      </label>
-      <label>
-        {copy.economyShare}
-        <input type="number" min="0" max="100" {...field("economyPercent")} />
-      </label>
-      {onRemove ? (
-        <button
-          className="button button-secondary"
-          type="button"
-          onClick={onRemove}
-        >
-          {copy.removeRow}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function ResultTable({ copy, result }: { copy: Copy; result: Comparison }) {
+  const [reason, setReason] = useState("");
   if (result.candidates.length === 0) return <p>{copy.noBids}</p>;
   const lowest = result.candidates.find((item) => item.result)?.bidVersionId;
+  const countries = [
+    ...new Set(
+      result.candidates.flatMap((item) =>
+        (item.result?.lines ?? []).map((line) => line.countryCode),
+      ),
+    ),
+  ].sort();
+  const { status, awardedCarrierCompanyId } = record.tender;
   return (
-    <table className="comparison-table">
-      <thead>
-        <tr>
-          <th>{copy.carrier}</th>
-          <th>{copy.total}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {result.candidates.map((item) => (
-          <tr
-            key={item.bidVersionId}
-            className={item.bidVersionId === lowest ? "comparison-best" : ""}
-          >
-            <td>
-              {item.vendorName ?? item.carrierCompanyId}
-              {item.bidVersionId === lowest ? ` · ${copy.cheapest}` : ""}
-            </td>
-            <td>
-              {item.result
-                ? `${(item.result.totalMinor / 100).toFixed(2)} ${result.currency}`
-                : item.error}
-            </td>
+    <>
+      <table className="comparison-table">
+        <thead>
+          <tr>
+            <th>{copy.carrier}</th>
+            {countries.map((code) => (
+              <th key={code}>{code}</th>
+            ))}
+            <th>{copy.total}</th>
+            <th />
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {result.candidates.map((item) => (
+            <tr
+              key={item.bidVersionId}
+              className={item.bidVersionId === lowest ? "comparison-best" : ""}
+            >
+              <td>
+                {item.vendorName ?? item.carrierCompanyId}
+                {item.bidVersionId === lowest ? ` · ${copy.cheapest}` : ""}
+                {item.carrierCompanyId === awardedCarrierCompanyId
+                  ? ` · ${copy.awardedTo}`
+                  : ""}
+              </td>
+              {countries.map((code) => (
+                <td key={code}>{countryTotal(item, code)}</td>
+              ))}
+              <td>
+                {item.result
+                  ? `${money(item.result.totalMinor)} ${result.currency}`
+                  : item.error}
+              </td>
+              <td>
+                {status === "closed" && item.result ? (
+                  <button
+                    className="button button-secondary"
+                    type="button"
+                    onClick={() => onAward(item.carrierCompanyId, reason)}
+                  >
+                    {copy.award}
+                  </button>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {status === "closed" ? (
+        <label>
+          {copy.awardReason}
+          <input
+            maxLength={500}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        </label>
+      ) : null}
+    </>
   );
+}
+
+function countryTotal(item: Candidate, code: string): string {
+  const lines = (item.result?.lines ?? []).filter(
+    (line) => line.countryCode === code,
+  );
+  return lines.length === 0
+    ? "–"
+    : money(lines.reduce((total, line) => total + line.totalMinor, 0));
 }

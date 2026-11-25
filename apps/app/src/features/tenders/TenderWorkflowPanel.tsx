@@ -14,6 +14,7 @@ import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 import { BidStatusPanel } from "./BidStatusPanel";
 import { bindTemplates } from "./bindTemplates";
+import { ShipmentBasisPanel } from "./ShipmentBasisPanel";
 import { TenderComparison } from "./TenderComparison";
 import type { TenderRecord } from "./tenderTypes";
 import { useBidStatus } from "./useBidStatus";
@@ -60,6 +61,9 @@ function CarrierBidPanel({
   const [busy, setBusy] = useState(false);
 
   const { status: bids } = useBidStatus(tenderId, status === "open");
+  if (status === "closed" || status === "awarded") {
+    return <CarrierOutcome locale={locale} tenderId={tenderId} />;
+  }
   if (status !== "open") return null;
   const mine = bids[0];
 
@@ -220,11 +224,19 @@ function StaffWorkflowPanel({
             {copy.closeTender}
           </button>
         ) : null}
-        {record.tender.status === "closed" ? (
-          <TenderComparison locale={locale} tenderId={record.tender.id} />
+        {record.tender.status === "closed" ||
+        record.tender.status === "awarded" ? (
+          <TenderComparison
+            locale={locale}
+            record={record}
+            onChanged={onChanged}
+          />
         ) : null}
         {message ? <p role="status">{message}</p> : null}
       </section>
+      {record.tender.status === "open" || record.tender.status === "closed" ? (
+        <ShipmentBasisPanel locale={locale} tenderId={record.tender.id} />
+      ) : null}
       {record.tender.status === "open" || record.tender.status === "closed" ? (
         <BidStatusPanel
           locale={locale}
@@ -303,4 +315,38 @@ function InvitationPanel({
 async function downloadTemplate(tenderId: string) {
   const blob = await downloadFile(`/api/tenders/${tenderId}/bid-template`);
   saveBlob(blob, `tender-${tenderId}-price-template.xlsx`);
+}
+
+// A carrier learns only its own result: won, not won, or still waiting. Never other prices.
+function CarrierOutcome({
+  locale,
+  tenderId,
+}: {
+  locale: Locale;
+  tenderId: string;
+}) {
+  const copy = getCopy(locale);
+  const [won, setWon] = useState<boolean | null>(null);
+  useEffect(() => {
+    void apiFetch<{ won: boolean | null }>(`/api/tenders/${tenderId}/outcome`)
+      .then((outcome) => setWon(outcome.won))
+      .catch(() => undefined);
+  }, [tenderId]);
+  const text =
+    won === null
+      ? copy.outcomeClosed
+      : won
+        ? copy.outcomeWon
+        : copy.outcomeLost;
+  return (
+    <section
+      className="white-card tender-workflow-card"
+      aria-label={copy.yourBid}
+    >
+      <h2>{copy.yourBid}</h2>
+      <p role="status" className={won ? "bid-sent" : "bid-waiting"}>
+        {text}
+      </p>
+    </section>
+  );
 }
