@@ -31,19 +31,16 @@ test.beforeEach(async ({ page }) => {
   await logIn(page, "staff@example.test");
 });
 
-test("public homepage shows an honest empty comparison preview", async ({
-  page,
-}) => {
+test("public homepage shows labelled sample numbers", async ({ page }) => {
   await page.getByRole("button", { name: "Log ud" }).click();
   await expect(page.getByLabel("E-mail")).toBeVisible();
   await page.goto("/");
 
-  await expect(page.getByText("Strukturel visning")).toBeVisible();
+  await expect(page.getByText("Eksempelvisning")).toBeVisible();
   await expect(
-    page.getByText("Ingen live tilbud vises på forsiden."),
+    page.getByText("Eksempeldata · ikke rigtige tilbud"),
   ).toBeVisible();
-  await expect(page.getByText("Transportør A")).toHaveCount(0);
-  await expect(page.getByText("1.240.000 DKK/year")).toHaveCount(0);
+  await expect(page.getByText("1.172.500 DKK").first()).toBeVisible();
 });
 
 test("staff lands on the empty tender workspace", async ({ page }) => {

@@ -1,5 +1,10 @@
 import { NavLink } from "react-router";
 import { IllustrativeOfferPreview } from "./components/public/IllustrativeOfferPreview";
+import {
+  formatDkk,
+  SAMPLE_OFFERS,
+  type SampleOffer,
+} from "./components/public/sampleOffers";
 import type { Locale } from "./i18n";
 import { getCopy } from "./i18n";
 
@@ -10,17 +15,15 @@ type LandingProps = {
 
 type Copy = ReturnType<typeof getCopy>;
 
-const EMPTY_ROWS = [1, 2, 3, 4];
-
 export function PublicLanding({ locale, onLocaleChange }: LandingProps) {
   const copy = getCopy(locale);
   return (
     <div className="min-h-screen overflow-hidden bg-freight-cream text-freight-ink">
       <Header copy={copy} locale={locale} onLocaleChange={onLocaleChange} />
       <main>
-        <Hero copy={copy} />
+        <Hero copy={copy} locale={locale} />
         <Proof copy={copy} />
-        <Solution copy={copy} />
+        <Solution copy={copy} locale={locale} />
         <Process copy={copy} />
         <Closing copy={copy} />
       </main>
@@ -128,7 +131,7 @@ function LanguageSwitch({
   );
 }
 
-function Hero({ copy }: { copy: Copy }) {
+function Hero({ copy, locale }: { copy: Copy; locale: Locale }) {
   return (
     <section className="relative overflow-hidden bg-freight-night px-5 pb-32 pt-16 text-white sm:px-8 sm:pt-20 lg:px-10 lg:pt-24">
       <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-16">
@@ -169,7 +172,7 @@ function Hero({ copy }: { copy: Copy }) {
             <CheckItem text={copy.publicHeroPointThree} />
           </div>
         </div>
-        <IllustrativeOfferPreview copy={copy} />
+        <IllustrativeOfferPreview copy={copy} locale={locale} />
       </div>
       <DottedPath />
     </section>
@@ -200,7 +203,7 @@ function ProofPoint({ text }: { text: string }) {
   );
 }
 
-function Solution({ copy }: { copy: Copy }) {
+function Solution({ copy, locale }: { copy: Copy; locale: Locale }) {
   return (
     <section
       className="bg-freight-cream px-5 py-24 sm:px-8 sm:py-32 lg:px-10"
@@ -213,7 +216,7 @@ function Solution({ copy }: { copy: Copy }) {
         <h2 className="max-w-6xl font-display text-[clamp(2.8rem,4.6vw,5rem)] leading-[0.96] tracking-[-0.05em]">
           {copy.publicSolutionTitle}
         </h2>
-        <SolutionVisual copy={copy} />
+        <SolutionVisual copy={copy} locale={locale} />
         <div className="mt-16 grid gap-8 sm:grid-cols-3">
           <Feature
             title={copy.publicFeatureOneTitle}
@@ -233,7 +236,7 @@ function Solution({ copy }: { copy: Copy }) {
   );
 }
 
-function SolutionVisual({ copy }: { copy: Copy }) {
+function SolutionVisual({ copy, locale }: { copy: Copy; locale: Locale }) {
   return (
     <div className="mt-20 grid items-center gap-7 lg:grid-cols-[1fr_auto_1fr]">
       <SpreadsheetVisual copy={copy} />
@@ -243,7 +246,7 @@ function SolutionVisual({ copy }: { copy: Copy }) {
       >
         <ArrowIcon />
       </span>
-      <ComparisonVisual copy={copy} />
+      <ComparisonVisual copy={copy} locale={locale} />
     </div>
   );
 }
@@ -270,8 +273,8 @@ function SpreadsheetVisual({ copy }: { copy: Copy }) {
         <span className="border-b border-freight-ink/10 bg-freight-cream p-2">
           C
         </span>
-        {EMPTY_ROWS.map((row) => (
-          <SpreadsheetRow key={row} row={row} />
+        {SAMPLE_OFFERS.map((offer, index) => (
+          <SpreadsheetRow key={offer.carrier} row={index + 1} offer={offer} />
         ))}
       </div>
       <div className="flex gap-6 border-t border-freight-ink/10 bg-freight-cream px-4 py-3 text-xs font-semibold text-freight-muted">
@@ -284,26 +287,21 @@ function SpreadsheetVisual({ copy }: { copy: Copy }) {
   );
 }
 
-function SpreadsheetRow({ row }: { row: number }) {
+function SpreadsheetRow({ row, offer }: { row: number; offer: SampleOffer }) {
+  const cell = "border-b border-freight-ink/10 p-3 tabular-nums";
   return (
     <>
       <span className="border-b border-r border-freight-ink/10 bg-freight-cream p-3 text-center text-freight-muted">
         {row}
       </span>
-      <span className="border-b border-r border-freight-ink/10 p-3">
-        <span className="block h-2 w-20 rounded-full bg-freight-ink/10" />
-      </span>
-      <span className="border-b border-r border-freight-ink/10 p-3">
-        <span className="block h-2 w-16 rounded-full bg-freight-ink/10" />
-      </span>
-      <span className="border-b border-freight-ink/10 p-3">
-        <span className="block h-2 w-14 rounded-full bg-freight-ink/10" />
-      </span>
+      <span className={`${cell} border-r`}>{offer.carrier}</span>
+      <span className={`${cell} border-r`}>{offer.annualPriceDkk}</span>
+      <span className={cell}>{offer.deliveryDays}</span>
     </>
   );
 }
 
-function ComparisonVisual({ copy }: { copy: Copy }) {
+function ComparisonVisual({ copy, locale }: { copy: Copy; locale: Locale }) {
   return (
     <div
       className="rounded-lg bg-freight-night p-6 text-white shadow-freight-dark-card"
@@ -322,27 +320,32 @@ function ComparisonVisual({ copy }: { copy: Copy }) {
         <span className="text-xs text-white/60">{copy.publicOutputBasis}</span>
       </div>
       <div className="divide-y divide-white/15">
-        {EMPTY_ROWS.map((row) => (
-          <ComparisonRow key={row} highlighted={row === 2} />
+        {SAMPLE_OFFERS.map((offer) => (
+          <ComparisonRow key={offer.carrier} offer={offer} locale={locale} />
         ))}
       </div>
     </div>
   );
 }
 
-function ComparisonRow({ highlighted }: { highlighted: boolean }) {
+function ComparisonRow({
+  offer,
+  locale,
+}: {
+  offer: SampleOffer;
+  locale: Locale;
+}) {
   return (
     <div
-      className={`flex items-center justify-between gap-4 py-5 ${highlighted ? "rounded bg-white/15 px-3" : ""}`}
-      aria-hidden="true"
+      className={`flex items-center justify-between gap-4 py-5 text-sm tabular-nums ${offer.best ? "rounded bg-white/15 px-3 font-semibold" : ""}`}
     >
       <span className="flex items-center gap-3">
         <span
-          className={`h-2.5 w-2.5 rounded-full ${highlighted ? "bg-freight-gold" : "bg-white/30"}`}
+          className={`h-2.5 w-2.5 rounded-full ${offer.best ? "bg-freight-gold" : "bg-white/30"}`}
         />
-        <span className="h-2.5 w-32 rounded-full bg-white/25" />
+        {offer.carrier}
       </span>
-      <span className="h-2.5 w-24 rounded-full bg-white/25" />
+      <span>{formatDkk(offer.annualPriceDkk, locale)}</span>
     </div>
   );
 }

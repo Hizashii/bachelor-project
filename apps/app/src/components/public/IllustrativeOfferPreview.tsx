@@ -1,4 +1,5 @@
-import type { Copy } from "../../i18n";
+import type { Copy, Locale } from "../../i18n";
+import { formatDkk, SAMPLE_OFFERS, type SampleOffer } from "./sampleOffers";
 
 type PreviewCopy = Pick<
   Copy,
@@ -18,9 +19,13 @@ type PreviewCopy = Pick<
   | "carrier"
 >;
 
-const STRUCTURAL_ROWS = [1, 2, 3, 4];
-
-export function IllustrativeOfferPreview({ copy }: { copy: PreviewCopy }) {
+export function IllustrativeOfferPreview({
+  copy,
+  locale,
+}: {
+  copy: PreviewCopy;
+  locale: Locale;
+}) {
   return (
     <section
       className="motion-safe:animate-freight-float overflow-hidden rounded-2xl border border-white/10 bg-freight-paper text-freight-ink shadow-freight-preview lg:mt-12"
@@ -28,7 +33,7 @@ export function IllustrativeOfferPreview({ copy }: { copy: PreviewCopy }) {
     >
       <PreviewHeader copy={copy} />
       <PreviewTabs copy={copy} />
-      <PreviewGrid copy={copy} />
+      <PreviewGrid copy={copy} locale={locale} />
       <PreviewNote copy={copy} />
     </section>
   );
@@ -67,7 +72,7 @@ function PreviewTabs({ copy }: { copy: PreviewCopy }) {
   );
 }
 
-function PreviewGrid({ copy }: { copy: PreviewCopy }) {
+function PreviewGrid({ copy, locale }: { copy: PreviewCopy; locale: Locale }) {
   return (
     <div className="px-6 py-5 sm:px-7">
       <div className="grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] gap-2 border-b border-freight-ink/10 pb-3 text-[0.58rem] font-bold uppercase tracking-[0.1em] text-freight-muted sm:gap-3 sm:text-[0.62rem] sm:tracking-[0.12em]">
@@ -77,24 +82,23 @@ function PreviewGrid({ copy }: { copy: PreviewCopy }) {
         <span>{copy.publicInputDelivery}</span>
       </div>
       <div className="divide-y divide-freight-ink/10">
-        {STRUCTURAL_ROWS.map((row) => (
-          <PreviewRow highlighted={row === 2} key={row} />
+        {SAMPLE_OFFERS.map((offer) => (
+          <PreviewRow key={offer.carrier} offer={offer} locale={locale} />
         ))}
       </div>
     </div>
   );
 }
 
-function PreviewRow({ highlighted }: { highlighted: boolean }) {
+function PreviewRow({ offer, locale }: { offer: SampleOffer; locale: Locale }) {
   return (
     <div
-      className={`grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] items-center gap-2 py-4 sm:gap-3 ${highlighted ? "bg-freight-sand/80" : ""}`}
-      aria-hidden="true"
+      className={`grid grid-cols-[1.1fr_1.35fr_0.75fr_0.75fr] items-center gap-2 py-4 text-xs tabular-nums sm:gap-3 sm:text-sm ${offer.best ? "bg-freight-sand/80 font-semibold" : ""}`}
     >
-      <span className="h-2.5 w-20 rounded-full bg-freight-ink/15" />
-      <span className="h-2.5 w-24 rounded-full bg-freight-ink/15" />
-      <span className="h-2.5 w-12 rounded-full bg-freight-ink/15" />
-      <span className="h-2.5 w-14 rounded-full bg-freight-ink/15" />
+      <span>{offer.carrier}</span>
+      <span>{formatDkk(offer.annualPriceDkk, locale)}</span>
+      <span>{offer.coveragePercent} %</span>
+      <span>{offer.deliveryDays} d</span>
     </div>
   );
 }
