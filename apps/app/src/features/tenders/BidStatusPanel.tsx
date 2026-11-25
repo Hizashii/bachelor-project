@@ -15,18 +15,22 @@ type Props = {
 const MS_PER_MINUTE = 60_000;
 const MINUTES_PER_HOUR = 60;
 
-function remaining(deadlineUtc: string, now: number): string | null {
-  const minutes = Math.floor((Date.parse(deadlineUtc) - now) / MS_PER_MINUTE);
-  if (minutes < 0) return null;
-  return `${Math.floor(minutes / MINUTES_PER_HOUR)} t ${minutes % MINUTES_PER_HOUR} min`;
+function remaining(
+  deadlineUtc: string,
+  copy: ReturnType<typeof getCopy>,
+): string {
+  const minutes = Math.floor(
+    (Date.parse(deadlineUtc) - Date.now()) / MS_PER_MINUTE,
+  );
+  if (minutes < 0) return copy.deadlinePassed;
+  const hours = Math.floor(minutes / MINUTES_PER_HOUR);
+  return `${hours} ${copy.hoursShort} ${minutes % MINUTES_PER_HOUR} ${copy.minutesShort}`;
 }
 
 export function BidStatusPanel({ locale, record, carrierNames }: Props) {
   const copy = getCopy(locale);
   const { status, updatedAt } = useBidStatus(record.tender.id, true);
   const deadline = record.tender.deadlineUtc;
-  const left =
-    deadline && updatedAt ? remaining(deadline, updatedAt.getTime()) : null;
   const time = (iso: string | null) =>
     iso ? new Date(iso).toLocaleTimeString(locale) : "";
 
@@ -39,7 +43,7 @@ export function BidStatusPanel({ locale, record, carrierNames }: Props) {
       {deadline ? (
         <p>
           {copy.deadline}: {new Date(deadline).toLocaleString(locale)}
-          {left ? ` · ${left}` : ` · ${copy.deadlinePassed}`}
+          {` · ${remaining(deadline, copy)}`}
         </p>
       ) : null}
       <ul className="bid-status-list">

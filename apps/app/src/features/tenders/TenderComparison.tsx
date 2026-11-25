@@ -16,6 +16,7 @@ const COUNTRY_CODES = verifiedTemplateView("express-price")
 type Copy = ReturnType<typeof getCopy>;
 
 type Line = {
+  id: string;
   countryCode: string;
   weightKg: string;
   count: string;
@@ -34,6 +35,7 @@ type Comparison = {
 };
 
 const newLine = (): Line => ({
+  id: crypto.randomUUID(),
   countryCode: COUNTRY_CODES[0] ?? "DE",
   weightKg: "1",
   count: "100",
@@ -77,6 +79,14 @@ export function TenderComparison({
   }
 
   async function exportResult(format: "xlsx" | "pdf") {
+    try {
+      await download(format);
+    } catch {
+      setMessage(copy.requestFailed);
+    }
+  }
+
+  async function download(format: "xlsx" | "pdf") {
     const blob = await downloadFile(
       `/api/tenders/${tenderId}/export.${format}`,
       {
@@ -143,9 +153,7 @@ function Lines({
   return lines.map((line, index) => (
     <LineRow
       copy={copy}
-      // Lines have no identity of their own, so the position is the key.
-      // biome-ignore lint/suspicious/noArrayIndexKey: lines are edited in place
-      key={index}
+      key={line.id}
       line={line}
       onChange={(next) =>
         onChange(lines.map((l, i) => (i === index ? next : l)))

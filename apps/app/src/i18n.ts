@@ -156,6 +156,10 @@ const localeCopy = {
     tenderTemplateTab: "Tilbudsskabelon",
     openTender: "Åbn udbud",
     bidStatusTitle: "Tilbudsstatus",
+    templatesNotAttached:
+      "Udbuddet er gemt, men skabelonerne kunne ikke knyttes. Gem igen for at prøve igen.",
+    hoursShort: "t",
+    minutesShort: "min",
     bidSubmitted: "Afsendt",
     bidNotSubmitted: "Ikke afsendt endnu",
     bidUpdated: "Opdateret",
@@ -580,6 +584,10 @@ const localeCopy = {
     tenderTemplateTab: "Tender price template",
     openTender: "Open tender",
     bidStatusTitle: "Bid status",
+    templatesNotAttached:
+      "The tender was saved, but the templates could not be attached. Save again to retry.",
+    hoursShort: "h",
+    minutesShort: "min",
     bidSubmitted: "Submitted",
     bidNotSubmitted: "Not submitted yet",
     bidUpdated: "Updated",

@@ -156,13 +156,13 @@ function StaffWorkflowPanel({
           ifMatch: record.etag,
         },
       );
+      onChanged(next);
       if (action === "open") {
         await bindTemplates(
           record.tender.id,
           next.tender.invitedCarrierCompanyIds,
-        );
+        ).catch(() => setMessage(copy.templatesNotAttached));
       }
-      onChanged(next);
     } catch {
       setMessage(copy.requestFailed);
     } finally {
@@ -181,9 +181,11 @@ function StaffWorkflowPanel({
           ifMatch: record.etag,
         },
       );
-      await bindTemplates(record.tender.id, selected);
       onChanged(next);
       setMessage(copy.saved);
+      await bindTemplates(record.tender.id, selected).catch(() =>
+        setMessage(copy.templatesNotAttached),
+      );
     } catch {
       setMessage(copy.requestFailed);
     } finally {
