@@ -38,6 +38,11 @@ import {
   PriceTemplateWorkbookError,
   type PriceTemplateWorkbookInput,
 } from "../tenders/priceTemplateExcel.ts";
+import {
+  buildBiddingWorkbook,
+  buildComparisonPdf,
+  buildPriceTemplateWorkbook,
+} from "../tenders/exports.ts";
 import type { PricingService } from "../tariffs/pricing.ts";
 import {
   TariffAccessError,
@@ -295,6 +300,62 @@ function registerTenderRoutes(
       );
     }),
   );
+  app.get(
+    "/api/tenders/:id/bid-template",
+    guarded(async (context, request, reply) => {
+      const id = idParams.parse(request.params).id;
+      await deps.tenders.get(context, id);
+      const workbook = await buildPriceTemplateWorkbook();
+      return sendDownload(
+        reply,
+        workbook,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        `tender-${id}-price-template.xlsx`,
+      );
+    }),
+  );
+  app.post(
+    "/api/tenders/:id/export.xlsx",
+    guarded(async (context, request, reply) => {
+      const id = idParams.parse(request.params).id;
+      const body = tenderCompareBody.parse(request.body);
+      const comparison = await deps.bids.compare(context, id, body.shipments);
+      const workbook = await buildBiddingWorkbook(comparison);
+      return sendDownload(
+        reply,
+        workbook,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        `tender-${id}-comparison.xlsx`,
+      );
+    }),
+  );
+  app.post(
+    "/api/tenders/:id/export.pdf",
+    guarded(async (context, request, reply) => {
+      const id = idParams.parse(request.params).id;
+      const body = tenderCompareBody.parse(request.body);
+      const comparison = await deps.bids.compare(context, id, body.shipments);
+      const pdf = await buildComparisonPdf(comparison);
+      return sendDownload(
+        reply,
+        pdf,
+        "application/pdf",
+        `tender-${id}-comparison.pdf`,
+      );
+    }),
+  );
+}
+
+function sendDownload(
+  reply: FastifyReply,
+  body: unknown,
+  contentType: string,
+  fileName: string,
+): FastifyReply {
+  return reply
+    .type(contentType)
+    .header("Content-Disposition", `attachment; filename="${fileName}"`)
+    .send(body);
 }
 
 function registerImportRoutes(
