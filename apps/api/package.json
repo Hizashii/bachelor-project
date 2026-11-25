@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "db:migrate": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/scripts/migrate.ts",
     "admin:create": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/scripts/createAdmin.ts",
+    "fixtures:excel": "node --experimental-strip-types src/scripts/makeTestWorkbooks.ts",
     "demo:seed": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/scripts/seedDemo.ts",
     "check:setup": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/scripts/preflight.ts",
     "start": "node --env-file-if-exists=../../.env.local --experimental-strip-types src/index.ts"

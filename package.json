@@ -21,6 +21,7 @@
     "build": "npm run build --workspaces --if-present",
     "db:migrate": "npm run db:migrate -w @freight-desk/api",
     "demo:seed": "npm run demo:seed -w @freight-desk/api",
+    "fixtures:excel": "npm run fixtures:excel -w @freight-desk/api",
     "check:setup": "npm run check:setup -w @freight-desk/api"
   },
   "devDependencies": {
