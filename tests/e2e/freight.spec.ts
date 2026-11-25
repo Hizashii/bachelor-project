@@ -284,6 +284,7 @@ async function createOpenTender(page: Page, name: string): Promise<string> {
   await expect(page).toHaveURL(/\/tenders\/[0-9a-f-]+$/);
   const tenderId = page.url().split("/").pop() ?? "";
   await page.getByLabel("Blue Fjord").check();
+  await page.getByLabel("Second Haul").check();
   await page.getByRole("button", { name: "Gem ændringer" }).click();
   await expect(page.getByText("Ændringer gemt")).toBeVisible();
   await page.getByRole("button", { name: "Åbn udbud" }).click();
@@ -291,42 +292,61 @@ async function createOpenTender(page: Page, name: string): Promise<string> {
   return tenderId;
 }
 
-async function bidWorkbook(rate: number) {
-  const workbook = new ExcelJS.Workbook();
-  workbook.addWorksheet("Total cost").getCell("C7").value = "Blue Fjord";
-  const sheet = workbook.addWorksheet("DK-DE");
-  for (let row = 14; row <= 31; row += 1) {
-    sheet.getCell(row, 2).value =
-      row === 31 ? "Over 300 kg" : `${row - 14}-${row - 13} kg`;
-    sheet.getCell(row, 3).value = rate;
-    sheet.getCell(row, 4).value = rate + 50;
-  }
-  return Buffer.from(await workbook.xlsx.writeBuffer());
+const FIXTURES = new URL(
+  "./../fixtures/express/",
+  import.meta.url,
+).pathname.replace(/^\/([A-Z]:)/, "$1");
+
+async function submitBid(page: Page, fileName: string) {
+  await page
+    .getByLabel("Upload Excel")
+    .setInputFiles(decodeURIComponent(FIXTURES) + fileName);
+  await page.getByRole("button", { name: "Send til godkendelse" }).click();
 }
 
-test("tender lifecycle: invite, carrier bids, staff closes and compares", async ({
+async function signInAs(page: Page, email: string) {
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await logIn(page, email);
+}
+
+test("tender lifecycle: carriers upload real workbooks, staff compare and export", async ({
   page,
 }) => {
   await createOpenTender(page, "Lifecycle bid 2027");
-  await page.getByRole("button", { name: "Log ud" }).click();
-  await logIn(page, "dana@bluefjord.test");
 
+  await signInAs(page, "dana@bluefjord.test");
   await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
-  await page.getByLabel("Upload Excel").setInputFiles({
-    name: "bid.xlsx",
-    mimeType:
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    buffer: await bidWorkbook(100),
-  });
-  await page.getByRole("button", { name: "Send til godkendelse" }).click();
+  await submitBid(page, "invalid-missing-price.xlsx");
+  await expect(page.getByText(/DK-DE.*0-1 kg/)).toBeVisible();
+  await submitBid(page, "carrier-north-valid.xlsx");
   await expect(page.getByText("Sendt til godkendelse.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Log ud" }).click();
-  await logIn(page, "staff@example.test");
+  await signInAs(page, "erik@secondhaul.test");
+  await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
+  await submitBid(page, "invalid-wrong-sheets.xlsx");
+  await expect(page.getByText(/No DK country sheets/)).toBeVisible();
+  await submitBid(page, "carrier-south-valid.xlsx");
+  await expect(page.getByText("Sendt til godkendelse.")).toBeVisible();
+
+  await signInAs(page, "staff@example.test");
   await page.getByRole("link", { name: "Lifecycle bid 2027" }).click();
   await page.getByRole("button", { name: "Luk udbud" }).click();
+  await page.getByLabel("Forsendelse", { exact: true }).fill("100");
   await page.getByRole("button", { name: "Sammenlign", exact: true }).click();
-  await expect(page.getByText(/Blue Fjord: \d+\.\d{2} DKK/)).toBeVisible();
+  const north = page.getByRole("row", { name: /Test Carrier North/ });
+  await expect(north).toContainText("5500.00 DKK");
+  await expect(north).toContainText("Billigst");
+  await expect(
+    page.getByRole("row", { name: /Test Carrier South/ }),
+  ).toContainText("5525.00 DKK");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download resultat Excel" }).click();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(await (await download).path());
+  expect(workbook.worksheets[0]?.getCell("A2").value).toBe(
+    "Test Carrier North",
+  );
 });
 
 test("tender workspace: staff saves a price and it survives a reload", async ({

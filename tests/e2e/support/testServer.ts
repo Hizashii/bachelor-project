@@ -27,6 +27,7 @@ const environment = loadApiEnvironment({
   API_PORT: apiPort,
   DATABASE_URL: process.env.TEST_DATABASE_URL,
   LOGIN_ATTEMPTS_PER_MINUTE: "1000",
+  REQUESTS_PER_MINUTE: "10000",
 });
 
 const database = await freshDatabase();
@@ -43,12 +44,21 @@ const tariffs = new TariffService({
 });
 
 const carrier = await accounts.createCarrier("Blue Fjord ApS", "Blue Fjord");
+const secondCarrier = await accounts.createCarrier(
+  "Second Haul ApS",
+  "Second Haul",
+);
 for (const user of [
   { email: "staff@example.test", role: "master" as const },
   {
     email: "dana@bluefjord.test",
     role: "carrier" as const,
     carrierId: carrier.id,
+  },
+  {
+    email: "erik@secondhaul.test",
+    role: "carrier" as const,
+    carrierId: secondCarrier.id,
   },
 ]) {
   const created = await accounts.createUser({
