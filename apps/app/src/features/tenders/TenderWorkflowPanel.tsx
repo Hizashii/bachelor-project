@@ -2,14 +2,19 @@
 // It keeps calculations on the API and only displays the returned result.
 
 import { useEffect, useState } from "react";
-import { apiFetch, downloadFile, postJson } from "../../api/client";
+import {
+  ApiError,
+  apiFetch,
+  downloadFile,
+  postJson,
+  saveBlob,
+} from "../../api/client";
 import type { UserRole } from "../../auth/auth";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
 import { TemplateBindingPanel } from "./TemplateBindingPanel";
+import { TenderComparison } from "./TenderComparison";
 import type { TenderRecord } from "./tenderTypes";
-
-const BASIS_POINTS_PER_PERCENT = 100;
 
 type Props = {
   locale: Locale;
@@ -67,8 +72,10 @@ function CarrierBidPanel({
         body: file,
       });
       setMessage(copy.submittedOk);
-    } catch {
-      setMessage(copy.requestFailed);
+    } catch (error) {
+      setMessage(
+        error instanceof ApiError ? error.message : copy.requestFailed,
+      );
     } finally {
       setBusy(false);
     }
@@ -197,7 +204,7 @@ function StaffWorkflowPanel({
           </button>
         ) : null}
         {record.tender.status === "closed" ? (
-          <ComparisonPanel locale={locale} tenderId={record.tender.id} />
+          <TenderComparison locale={locale} tenderId={record.tender.id} />
         ) : null}
         {message ? <p role="status">{message}</p> : null}
       </section>
@@ -274,157 +281,7 @@ function InvitationPanel({
   );
 }
 
-function ComparisonPanel({
-  locale,
-  tenderId,
-}: {
-  locale: Locale;
-  tenderId: string;
-}) {
-  const copy = getCopy(locale);
-  const [countryCode, setCountryCode] = useState("DE");
-  const [weightKg, setWeightKg] = useState("1");
-  const [count, setCount] = useState("1");
-  const [economyPercent, setEconomyPercent] = useState("50");
-  const [result, setResult] = useState<ComparisonResponse>();
-  const [message, setMessage] = useState("");
-
-  async function compare() {
-    const shipments = [
-      {
-        countryCode: countryCode.trim().toUpperCase(),
-        weightKg: Number(weightKg),
-        numberOfShipments: Number(count),
-        economyShareBasisPoints:
-          Number(economyPercent) * BASIS_POINTS_PER_PERCENT,
-      },
-    ];
-    try {
-      setResult(
-        await postJson<ComparisonResponse>(`/api/tenders/${tenderId}/compare`, {
-          shipments,
-        }),
-      );
-      setMessage("");
-    } catch {
-      setMessage(copy.requestFailed);
-    }
-  }
-
-  async function exportResult(format: "xlsx" | "pdf") {
-    const shipments = [
-      {
-        countryCode: countryCode.trim().toUpperCase(),
-        weightKg: Number(weightKg),
-        numberOfShipments: Number(count),
-        economyShareBasisPoints:
-          Number(economyPercent) * BASIS_POINTS_PER_PERCENT,
-      },
-    ];
-    const blob = await downloadFile(
-      `/api/tenders/${tenderId}/export.${format}`,
-      {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ shipments }),
-      },
-    );
-    saveBlob(blob, `tender-${tenderId}-comparison.${format}`);
-  }
-
-  return (
-    <section aria-labelledby="tender-comparison-title">
-      <h3 id="tender-comparison-title">{copy.compare}</h3>
-      <label>
-        {copy.destinationPostcode}
-        <input
-          value={countryCode}
-          onChange={(event) => setCountryCode(event.target.value)}
-        />
-      </label>
-      <label>
-        {copy.calcWeight}
-        <input
-          type="number"
-          min="0.01"
-          value={weightKg}
-          onChange={(event) => setWeightKg(event.target.value)}
-        />
-      </label>
-      <label>
-        {copy.shipmentTitle}
-        <input
-          type="number"
-          min="1"
-          value={count}
-          onChange={(event) => setCount(event.target.value)}
-        />
-      </label>
-      <label>
-        {copy.pricesStep}
-        <input
-          type="number"
-          min="0"
-          max="100"
-          value={economyPercent}
-          onChange={(event) => setEconomyPercent(event.target.value)}
-        />
-      </label>
-      <button
-        className="button button-secondary"
-        type="button"
-        onClick={() => void compare()}
-      >
-        {copy.compare}
-      </button>
-      <button
-        className="button button-secondary"
-        type="button"
-        onClick={() => void exportResult("xlsx")}
-      >
-        {copy.downloadResult} Excel
-      </button>
-      <button
-        className="button button-secondary"
-        type="button"
-        onClick={() => void exportResult("pdf")}
-      >
-        {copy.downloadResult} PDF
-      </button>
-      {message ? <p role="alert">{message}</p> : null}
-      {result?.candidates.map((candidate) => (
-        <p key={candidate.bidVersionId}>
-          {candidate.vendorName ?? candidate.carrierCompanyId}:{" "}
-          {candidate.result
-            ? `${(candidate.result.totalMinor / 100).toFixed(2)} ${result.currency}`
-            : candidate.error}
-        </p>
-      ))}
-    </section>
-  );
-}
-
-type ComparisonResponse = {
-  currency: string;
-  candidates: {
-    carrierCompanyId: string;
-    bidVersionId: string;
-    vendorName: string | null;
-    result: { totalMinor: number } | null;
-    error: string | null;
-  }[];
-};
-
 async function downloadTemplate(tenderId: string) {
   const blob = await downloadFile(`/api/tenders/${tenderId}/bid-template`);
   saveBlob(blob, `tender-${tenderId}-price-template.xlsx`);
-}
-
-function saveBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
 }

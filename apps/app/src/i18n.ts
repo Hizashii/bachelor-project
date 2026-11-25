@@ -156,6 +156,11 @@ const localeCopy = {
     tenderTemplateTab: "Tilbudsskabelon",
     bindTemplates: "Knyt prisskabeloner",
     openTender: "Åbn udbud",
+    addLine: "Tilføj linje",
+    country: "Land",
+    economyShare: "% Economy",
+    total: "Total",
+    noBids: "Der er ikke modtaget nogen tilbud.",
     closeTender: "Luk udbud",
     downloadTemplate: "Download skabelon",
     bindTemplatesDetail:
@@ -573,6 +578,11 @@ const localeCopy = {
     tenderTemplateTab: "Tender price template",
     bindTemplates: "Attach price templates",
     openTender: "Open tender",
+    addLine: "Add line",
+    country: "Country",
+    economyShare: "% Economy",
+    total: "Total",
+    noBids: "No bids have been received.",
     closeTender: "Close tender",
     downloadTemplate: "Download template",
     bindTemplatesDetail:
