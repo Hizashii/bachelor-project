@@ -149,33 +149,45 @@ describe("tender draft persistence boundary", () => {
     ).toEqual({});
   });
 
-  it("keeps the express pricing template administrator-only", async () => {
+  it("lets an invited carrier price the express workbook but not see the bidding workbook", async () => {
     const documents = new FakeDocuments();
     const service = new TenderDraftService(
       documents as unknown as PrincipalDocuments,
     );
     const binding = expressBinding();
     await service.configure(staff, "t1", {
+      biddingTemplate: biddingBinding(),
       expressPriceTemplate: binding,
       invitedCarrierIds: ["carrier-a"],
     });
 
     const templates = await service.getTemplates(carrierA, "t1");
-    expect(templates.items).toEqual([]);
+    expect(templates.items.map((item) => item.template.kind)).toEqual([
+      "express-price",
+    ]);
     await expect(
-      service.getDraft(carrierA, "t1", "express-price"),
+      service.getDraft(carrierA, "t1", "customer-bidding"),
     ).rejects.toBeInstanceOf(TenderAccessError);
-    await expect(
-      service.saveDraftForTender(carrierA, "t1", {
-        templateId: "express-price",
-        templateVersion: binding.templateVersion,
-        sourceSha256: binding.sourceSha256,
-        expectedRevision: 0,
-        values: {},
-      }),
-    ).rejects.toBeInstanceOf(TenderAccessError);
+    const saved = await service.saveDraftForTender(carrierA, "t1", {
+      templateId: "express-price",
+      templateVersion: binding.templateVersion,
+      sourceSha256: binding.sourceSha256,
+      expectedRevision: 0,
+      values: { "express-price|DK-DE|C14": "42" },
+    });
+    expect(saved.revision).toBe(1);
   });
 });
+
+function biddingBinding(): TemplateVersionBinding {
+  const template = findTemplateVersion("customer-bidding", "1.0.0");
+  if (!template) throw new Error("The bidding template is not registered.");
+  return {
+    templateId: template.id,
+    templateVersion: template.version,
+    sourceSha256: template.source.sha256,
+  };
+}
 
 function expressBinding(): TemplateVersionBinding {
   const template = findTemplateVersion("express-price", "1.0.0");

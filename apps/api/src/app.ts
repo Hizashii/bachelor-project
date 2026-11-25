@@ -109,11 +109,15 @@ export function buildApi(options: BuildApiOptions): FastifyInstance {
         principalOf: (request) =>
           request.auth ? principalOf(accessContextOf(request.auth.user)) : null,
       });
-      registerFreightRoutes(
-        scope,
-        createFreightServices(storage, () => accounts.activeCarriers()),
+      const freight = createFreightServices(storage, () =>
+        accounts.activeCarriers(),
       );
-      registerTenderDraftRoutes(scope, new PrincipalDocuments(storage));
+      registerFreightRoutes(scope, freight);
+      registerTenderDraftRoutes(
+        scope,
+        new PrincipalDocuments(storage),
+        freight.bids,
+      );
     }
     scope.register(async (admin) => {
       admin.addHook("preHandler", requireRole("master"));

@@ -485,7 +485,7 @@ function templateVisibleToPrincipal(
   principal: Principal,
   templateId: "customer-bidding" | "express-price",
 ): boolean {
-  return templateId !== "express-price" || principal.role === "staff";
+  return templateId === "express-price" || principal.role === "staff";
 }
 
 function assertTemplateVisibleToPrincipal(
@@ -494,7 +494,7 @@ function assertTemplateVisibleToPrincipal(
 ): void {
   if (!templateVisibleToPrincipal(principal, templateId)) {
     throw new TenderAccessError(
-      "The express pricing template is available to administrators only.",
+      "The customer bidding workbook is available to staff only.",
     );
   }
 }

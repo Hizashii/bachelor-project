@@ -59,14 +59,22 @@ export class BidService {
     tenderId: string,
     workbook: PriceTemplateWorkbookInput,
   ): Promise<BidVersion> {
-    this.allowBid(context);
-    const savedTender = await this.deps.tenders.get(context, tenderId);
-    assertOpen(savedTender.tender);
-    const latest = await this.latestForCarrier(context, tenderId);
     const template = await parsePriceTemplateWorkbook(
       workbook,
       context.organisationId,
     );
+    return this.submitTemplate(context, tenderId, template);
+  }
+
+  async submitTemplate(
+    context: AccessContext,
+    tenderId: string,
+    template: PriceTemplate,
+  ): Promise<BidVersion> {
+    this.allowBid(context);
+    const savedTender = await this.deps.tenders.get(context, tenderId);
+    assertOpen(savedTender.tender);
+    const latest = await this.latestForCarrier(context, tenderId);
     const bid = buildBid(
       context,
       savedTender,

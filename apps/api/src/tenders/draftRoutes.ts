@@ -7,10 +7,17 @@ import {
 } from "@freight-desk/shared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { tenderDraftPrincipalOf } from "../auth/principal.ts";
+import { accessContextOf, tenderDraftPrincipalOf } from "../auth/principal.ts";
+import type { AuthenticatedUser } from "../auth/types.ts";
 import { StorageError } from "../storage/errors.ts";
 import type { PrincipalDocuments } from "../storage/principalDocuments.ts";
 import type { Principal } from "../storage/types.ts";
+import {
+  BidAccessError,
+  type BidService,
+  BidStateError,
+} from "./bidService.ts";
+import { draftToPriceTemplate } from "./draftPriceTemplate.ts";
 import {
   TenderAccessError,
   TenderDraftConflictError,
@@ -19,6 +26,7 @@ import {
   tenderConfigInputSchema,
   tenderDraftInputSchema,
 } from "./drafts.ts";
+import { PriceTemplateWorkbookError } from "./priceTemplateExcel.ts";
 
 const TEMPLATE_DESTINATION_KEY = "documents/templates";
 const tenderParams = z.object({
@@ -39,11 +47,13 @@ const draftQuery = z.object({
 type Handler<T> = (
   principal: Principal,
   request: FastifyRequest,
+  user: AuthenticatedUser,
 ) => Promise<T> | T;
 
 export function registerTenderDraftRoutes(
   app: FastifyInstance,
   documents: PrincipalDocuments,
+  bids: BidService,
 ): void {
   const drafts = new TenderDraftService(documents);
   const guarded =
@@ -52,10 +62,8 @@ export function registerTenderDraftRoutes(
       if (!request.auth)
         return reply.code(401).send({ message: "Please sign in." });
       try {
-        return await handler(
-          tenderDraftPrincipalOf(request.auth.user),
-          request,
-        );
+        const { user } = request.auth;
+        return await handler(tenderDraftPrincipalOf(user), request, user);
       } catch (error) {
         return sendError(reply, error);
       }
@@ -94,6 +102,20 @@ export function registerTenderDraftRoutes(
         tenderParams.parse(request.params).tenderId,
         { ...body, expectedRevision },
       );
+    }),
+  );
+  app.post(
+    "/api/tenders/:tenderId/bid-draft/submit",
+    guarded(async (principal, request, user) => {
+      const tenderId = tenderParams.parse(request.params).tenderId;
+      const context = accessContextOf(user);
+      const draft = await drafts.getDraft(principal, tenderId, "express-price");
+      const template = draftToPriceTemplate(
+        draft.values,
+        context.organisationId,
+      );
+      const bid = await bids.submitTemplate(context, tenderId, template);
+      return { versionNumber: bid.versionNumber };
     }),
   );
   app.put(
@@ -181,6 +203,17 @@ function sendError(reply: FastifyReply, error: unknown) {
   }
   if (error instanceof TenderDraftConflictError) {
     return reply.code(409).send({ error: "conflict", message: error.message });
+  }
+  if (error instanceof PriceTemplateWorkbookError) {
+    return reply
+      .code(422)
+      .send({ error: "invalid_bid", message: error.message });
+  }
+  if (error instanceof BidStateError) {
+    return reply.code(409).send({ error: "closed", message: error.message });
+  }
+  if (error instanceof BidAccessError) {
+    return reply.code(403).send({ error: "forbidden", message: error.message });
   }
   if (error instanceof TenderAccessError) {
     return reply.code(403).send({ error: "forbidden", message: error.message });

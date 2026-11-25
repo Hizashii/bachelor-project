@@ -102,7 +102,7 @@ function readVendorName(workbook: ExcelJS.Workbook): string | null {
   return name || null;
 }
 
-function parseBandBounds(label: string): {
+export function parseBandBounds(label: string): {
   fromKg: number;
   toKg: number | null;
 } {
