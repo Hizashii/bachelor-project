@@ -8,8 +8,10 @@ import { parseDecimalInput, verifiedTemplateView } from "@freight-desk/shared";
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { csrfHeader } from "../../api/client";
+import { useAuth } from "../../auth/auth";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import { SubmitBidButton } from "./SubmitBidButton";
 import { WorkbookTable } from "./WorkbookTable";
 
 const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
@@ -200,6 +202,7 @@ function TenderTemplateEditor({
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const role = useAuth().user?.role;
 
   const loadDraft = useCallback(async () => {
     setLoading(true);
@@ -371,9 +374,6 @@ function TenderTemplateEditor({
               {notice.text}
             </span>
           ) : null}
-          <span className="tender-no-submit">
-            {copy.tenderSubmitUnavailable}
-          </span>
         </div>
         <div className="tender-editor-actions">
           {notice?.kind === "conflict" ? (
@@ -393,6 +393,14 @@ function TenderTemplateEditor({
           >
             {copy.saveChanges}
           </button>
+          {role === "carrier" && item.template.kind === "express-price" ? (
+            <SubmitBidButton
+              copy={copy}
+              tenderId={tenderId}
+              disabled={dirty || revision === 0}
+              onResult={(kind, text) => setNotice({ kind, text })}
+            />
+          ) : null}
         </div>
       </div>
     </section>

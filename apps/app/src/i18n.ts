@@ -154,7 +154,6 @@ const localeCopy = {
     documentsTab: "Dokumenter",
     saveChanges: "Gem ændringer",
     tenderTemplateTab: "Tilbudsskabelon",
-    bindTemplates: "Knyt prisskabeloner",
     openTender: "Åbn udbud",
     addLine: "Tilføj linje",
     country: "Land",
@@ -163,9 +162,6 @@ const localeCopy = {
     noBids: "Der er ikke modtaget nogen tilbud.",
     closeTender: "Luk udbud",
     downloadTemplate: "Download skabelon",
-    bindTemplatesDetail:
-      "Knyt de godkendte Excel-skabeloner til udbuddet, så priser kan udfyldes.",
-    templatesBound: "Skabeloner knyttet til udbuddet.",
     templatesEyebrow: "Dokumentskabeloner",
     templatesTitle: "Kundens Excel-skabeloner",
     templatesSubtitle:
@@ -576,7 +572,6 @@ const localeCopy = {
     documentsTab: "Documents",
     saveChanges: "Save changes",
     tenderTemplateTab: "Tender price template",
-    bindTemplates: "Attach price templates",
     openTender: "Open tender",
     addLine: "Add line",
     country: "Country",
@@ -585,9 +580,6 @@ const localeCopy = {
     noBids: "No bids have been received.",
     closeTender: "Close tender",
     downloadTemplate: "Download template",
-    bindTemplatesDetail:
-      "Attach the approved Excel templates to this tender so prices can be entered.",
-    templatesBound: "Templates attached to the tender.",
     templatesEyebrow: "Document templates",
     templatesTitle: "Customer Excel templates",
     templatesSubtitle:

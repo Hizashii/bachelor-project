@@ -54,14 +54,14 @@ export function TenderOverview({
         description={tender.customerReference}
         action={
           <>
+            <NavLink
+              className="button button-secondary"
+              to={`/tenders/${tender.id}/workspace`}
+            >
+              {copy.tenderTemplateTab}
+            </NavLink>
             {role === "carrier" ? null : (
               <>
-                <NavLink
-                  className="button button-secondary"
-                  to={`/tenders/${tender.id}/workspace`}
-                >
-                  {copy.tenderTemplateTab}
-                </NavLink>
                 <NavLink
                   className="button button-primary"
                   to={`/tenders/${tender.id}/edit`}

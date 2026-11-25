@@ -354,14 +354,6 @@ test("tender workspace: staff saves a price and it survives a reload", async ({
 }) => {
   await createOpenTender(page, "Lifecycle workspace 2027");
   await page.getByRole("link", { name: "Tilbudsskabelon" }).click();
-  await expect(page.getByText("Template ikke konfigureret")).toBeVisible();
-
-  await page.goBack();
-  await page.getByRole("button", { name: "Knyt prisskabeloner" }).click();
-  await expect(
-    page.getByText("Skabeloner knyttet til udbuddet."),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Tilbudsskabelon" }).click();
   await page.getByRole("tab", { name: "Express price workbook" }).click();
   await page.getByRole("tab", { name: /^DK-BE/ }).click();
   await page.getByRole("textbox", { name: /DK-BE/ }).first().fill("12,5");
@@ -433,4 +425,38 @@ test("signing out returns to the login page and blocks the app", async ({
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/tenders");
   await expect(page.getByLabel("E-mail")).toBeVisible();
+});
+
+test("carriers fill the express workbook in the app and staff compare the result", async ({
+  page,
+}) => {
+  await createOpenTender(page, "Online pricing 2027");
+
+  await signInAs(page, "dana@bluefjord.test");
+  await page.getByRole("link", { name: "Online pricing 2027" }).click();
+  await page.getByRole("link", { name: "Tilbudsskabelon" }).click();
+  await expect(
+    page.getByRole("tab", { name: "Express price workbook" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("tab", { name: "Customer bidding workbook" }),
+  ).toHaveCount(0);
+
+  await page.getByRole("tab", { name: /^DK-DE/ }).click();
+  await page.getByLabel("Leverandørnavn").fill("Blue Fjord Online");
+  const cells = page.getByRole("textbox", { name: /^DK-DE / });
+  for (const cell of await cells.all()) await cell.fill("10");
+  await page.getByRole("button", { name: "Gem ændringer" }).click();
+  await expect(page.getByText("Kladde gemt")).toBeVisible();
+  await page.getByRole("button", { name: "Send til godkendelse" }).click();
+  await expect(page.getByText("Sendt til godkendelse.")).toBeVisible();
+
+  await signInAs(page, "staff@example.test");
+  await page.getByRole("link", { name: "Online pricing 2027" }).click();
+  await page.getByRole("button", { name: "Luk udbud" }).click();
+  await page.getByLabel("Land").selectOption("DE");
+  await page.getByRole("button", { name: "Sammenlign", exact: true }).click();
+  await expect(
+    page.getByRole("row", { name: /Blue Fjord Online/ }),
+  ).toContainText("1000.00 DKK");
 });

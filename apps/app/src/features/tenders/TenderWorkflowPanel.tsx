@@ -12,7 +12,7 @@ import {
 import type { UserRole } from "../../auth/auth";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
-import { TemplateBindingPanel } from "./TemplateBindingPanel";
+import { bindTemplates } from "./bindTemplates";
 import { TenderComparison } from "./TenderComparison";
 import type { TenderRecord } from "./tenderTypes";
 
@@ -148,6 +148,12 @@ function StaffWorkflowPanel({
           ifMatch: record.etag,
         },
       );
+      if (action === "open") {
+        await bindTemplates(
+          record.tender.id,
+          next.tender.invitedCarrierCompanyIds,
+        );
+      }
       onChanged(next);
     } catch {
       setMessage(copy.requestFailed);
@@ -167,6 +173,7 @@ function StaffWorkflowPanel({
           ifMatch: record.etag,
         },
       );
+      await bindTemplates(record.tender.id, selected);
       onChanged(next);
       setMessage(copy.saved);
     } catch {
@@ -208,13 +215,6 @@ function StaffWorkflowPanel({
         ) : null}
         {message ? <p role="status">{message}</p> : null}
       </section>
-      {record.tender.status === "draft" || record.tender.status === "open" ? (
-        <TemplateBindingPanel
-          locale={locale}
-          tenderId={record.tender.id}
-          invitedCarrierIds={record.tender.invitedCarrierCompanyIds}
-        />
-      ) : null}
       {record.tender.status === "draft" || record.tender.status === "open" ? (
         <InvitationPanel
           copy={copy}
