@@ -14,6 +14,7 @@ const LAST_BAND_ROW = 31;
 const ADDITIONAL_FEE_ROW = 37;
 const RATE_COLUMN = { economy: 3, express: 4 } as const;
 type ExcelWorkbookInput = Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0];
+export type PriceTemplateWorkbookInput = ExcelWorkbookInput;
 
 export class PriceTemplateWorkbookError extends Error {}
 
