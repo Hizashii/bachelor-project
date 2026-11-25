@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  entityIdSchema,
   type Tender,
   type TenderDraftInput,
   type TenderStatus,
@@ -144,6 +145,35 @@ export class TenderService {
     return this.transition(context, id, ifMatch, "open", "closed", {
       closedAtUtc: new Date().toISOString(),
     });
+  }
+
+  async invite(
+    context: AccessContext,
+    id: string,
+    carrierCompanyIds: readonly string[],
+    ifMatch: string,
+  ): Promise<SavedTender> {
+    this.allow(context, "tender:edit");
+    const current = await this.get(context, id);
+    if (!["draft", "open"].includes(current.tender.status)) {
+      throw new TenderStateError("Only a draft or open tender can be invited.");
+    }
+    if (ifMatch !== current.etag) {
+      throw new StorageError("conflict", "Reload before saving again.");
+    }
+    const ids = carrierCompanyIds.map((idValue) =>
+      entityIdSchema.parse(idValue),
+    );
+    const tender = {
+      ...current.tender,
+      invitedCarrierCompanyIds: [
+        ...new Set([...current.tender.invitedCarrierCompanyIds, ...ids]),
+      ],
+      revision: current.tender.revision + 1,
+      updatedAtUtc: new Date().toISOString(),
+    };
+    const file = await this.write(context, tender);
+    return { tender, etag: String(tender.revision), fileId: file.id };
   }
 
   private async transition(

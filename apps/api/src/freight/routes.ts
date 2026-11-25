@@ -115,6 +115,12 @@ const tenderUpdateBody = z
   .object({ draft: tenderDraftInputSchema, ifMatch: z.string().min(1) })
   .strict();
 const tenderTransitionBody = z.object({ ifMatch: z.string().min(1) }).strict();
+const tenderInvitationBody = z
+  .object({
+    carrierCompanyIds: z.array(z.string().uuid()).min(1).max(100),
+    ifMatch: z.string().min(1),
+  })
+  .strict();
 const tenderCompareBody = z
   .object({ shipments: z.array(priceTemplateShipmentSchema).min(1).max(10_000) })
   .strict();
@@ -232,6 +238,13 @@ function registerTenderRoutes(
       deps.tenders.get(context, idParams.parse(request.params).id),
     ),
   );
+  app.get(
+    "/api/tender-carriers",
+    guarded(async (context) => {
+      if (context.role === "carrier") return [];
+      return deps.listCarriers();
+    }),
+  );
   app.post(
     "/api/tenders",
     guarded((context, request) =>
@@ -268,6 +281,18 @@ function registerTenderRoutes(
       return deps.tenders.close(
         context,
         idParams.parse(request.params).id,
+        body.ifMatch,
+      );
+    }),
+  );
+  app.post(
+    "/api/tenders/:id/invitations",
+    guarded((context, request) => {
+      const body = tenderInvitationBody.parse(request.body);
+      return deps.tenders.invite(
+        context,
+        idParams.parse(request.params).id,
+        body.carrierCompanyIds,
         body.ifMatch,
       );
     }),

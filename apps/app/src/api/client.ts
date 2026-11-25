@@ -49,3 +49,25 @@ export function postJson<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 }
+
+export async function downloadFile(
+  path: string,
+  init: RequestInit = {},
+): Promise<Blob> {
+  const changes = (init.method ?? "GET") !== "GET";
+  const response = await fetch(path, {
+    credentials: "same-origin",
+    ...init,
+    headers: { ...(changes ? await csrfHeader() : {}), ...init.headers },
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      message?: string;
+    } | null;
+    throw new ApiError(
+      response.status,
+      body?.message ?? "Something went wrong.",
+    );
+  }
+  return response.blob();
+}

@@ -133,4 +133,21 @@ describe("tender workflow", () => {
     expect(closed.tender.status).toBe("closed");
     expect(closed.tender.closedAtUtc).not.toBeNull();
   });
+
+  it("adds invited carriers without exposing other companies", async () => {
+    const { tenders } = setup();
+    const created = await tenders.create(staff, input);
+    const invited = await tenders.invite(
+      staff,
+      created.tender.id,
+      [carrierA.organisationId],
+      created.etag,
+    );
+
+    expect(invited.tender.invitedCarrierCompanyIds).toEqual([
+      carrierA.organisationId,
+    ]);
+    expect((await tenders.list(carrierA, { limit: 20 })).total).toBe(1);
+    expect((await tenders.list(carrierB, { limit: 20 })).total).toBe(0);
+  });
 });

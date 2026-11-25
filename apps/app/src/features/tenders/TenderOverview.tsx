@@ -10,6 +10,7 @@ import {
 } from "../../components/OperationalUI";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import { TenderWorkflowPanel } from "./TenderWorkflowPanel";
 import type { TenderRecord } from "./tenderTypes";
 
 export function TenderOverview({
@@ -124,6 +125,12 @@ export function TenderOverview({
           }
         />
       </section>
+      <TenderWorkflowPanel
+        locale={locale}
+        role={role}
+        record={record}
+        onChanged={setRecord}
+      />
       <ActionBar>
         <NavLink className="button button-secondary" to="/tenders">
           {copy.backToTenders}
