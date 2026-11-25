@@ -483,3 +483,26 @@ test("staff see a carrier's bid arrive without reloading, with no prices", async
   await expect(status.getByText("Ikke afsendt endnu")).toHaveCount(1);
   await expect(page.getByText("5500.00")).toHaveCount(0);
 });
+
+test("an expired session sends the user back to the login page", async ({
+  page,
+}) => {
+  const nav = page.getByRole("navigation", { name: "Primær navigation" });
+  await nav.getByRole("link", { name: "Filer" }).waitFor();
+  await page.context().clearCookies();
+  await nav.getByRole("link", { name: "Filer" }).click();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await expect(page).toHaveURL(/\/login$/);
+});
+
+test("a signed-out visitor to a deep link gets the login page, then the page", async ({
+  browser,
+}) => {
+  const visitor = await (await browser.newContext()).newPage();
+  await visitor.goto("/tenders/new");
+  await expect(visitor.getByLabel("E-mail")).toBeVisible();
+  await visitor.getByLabel("E-mail").fill("staff@example.test");
+  await visitor.getByLabel("Password").fill(PASSWORD);
+  await visitor.getByRole("button", { name: "Log in" }).click();
+  await expect(visitor.getByLabel("Navn på udbud")).toBeVisible();
+});

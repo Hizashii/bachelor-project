@@ -24,14 +24,13 @@ export function App(): ReactElement {
   const path = useLocation().pathname;
   const isPublicEntry = path === "/";
 
-  if (isPublicEntry && auth.status !== "authenticated" && !auth.user) {
-    return <PublicLanding locale={locale} onLocaleChange={setLocale} />;
-  }
-
   if (auth.status === "loading") {
     return (
       <div className="auth-loading-screen">Loading your secure workspace…</div>
     );
+  }
+  if (isPublicEntry && auth.status !== "authenticated" && !auth.user) {
+    return <PublicLanding locale={locale} onLocaleChange={setLocale} />;
   }
   if (auth.status === "error") {
     if (path === "/login") return <LoginScreen />;
