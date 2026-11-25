@@ -21,8 +21,8 @@ tested in every part of the product.
 | `consultant` | A logistics consultancy employee | Tenders, invitations, comparisons and exports | Read sealed offers before the deadline |
 | `master` | A very limited consultancy owner group | All consultant actions, companies, memberships, unsealing and audit review | Bypass the audit trail |
 
-There are no product passwords. Identity, MFA and role assignment come from
-Microsoft Entra. A carrier membership contains the carrier company ID used for
+People use product e-mail/password accounts. The API stores only Argon2id
+password hashes; PostgreSQL memberships provide role and carrier company IDs for
 every authorization check.
 
 ## Tender lifecycle

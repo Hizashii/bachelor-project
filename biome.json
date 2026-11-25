@@ -12,6 +12,14 @@
       "!apps/api/data"
     ]
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "tailwind": {
+    "stylesheet": "apps/app/src/styles.css"
+  },
   "formatter": {
     "enabled": true,
     "indentStyle": "space",

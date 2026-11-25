@@ -28,13 +28,7 @@ export function App(): ReactElement {
   ].includes(path);
 
   if (isPublicEntry && auth.status !== "authenticated" && !auth.user) {
-    return (
-      <PublicLanding
-        locale={locale}
-        onLocaleChange={setLocale}
-        authUnavailable={auth.status === "error"}
-      />
-    );
+    return <PublicLanding locale={locale} onLocaleChange={setLocale} />;
   }
 
   if (auth.status === "loading") {

@@ -4,7 +4,6 @@ This file records the first week of checks that must be completed before product
 
 ## Open spikes
 
-- [ ] Confirm Entra External ID app roles and the `companyId` claim; compare the guest-user fallback.
 - [ ] Confirm `Sites.Selected` permits the single data site and denies other sites.
 - [ ] Confirm the Graph Excel API changes a named cell without breaking array formulas.
 - [ ] Measure the 3,136-row shipment read and behaviour while Excel has the file locked.
@@ -25,10 +24,10 @@ feature is released. The existing decisions above remain in force.
   is display-only and uses the tender's IANA time zone.
 - Prices use integer minor currency units and always carry a currency code.
 - The first data model supports kg, pallets, CBM, LDM and packages.
-- SharePoint Excel and JSON files are the intended first source of truth. The
-  current application has not yet implemented the SharePoint adapter. A
-  PostgreSQL foundation migration may hold only account, organisation and
-  authorisation metadata; it must not become a freight-data store.
+- SharePoint Excel and JSON files are the freight source of truth. The current
+  application has local and SharePoint storage adapters behind one interface.
+  PostgreSQL holds only account, organisation and authorisation metadata; it
+  must not become a freight-data store.
 - Canonical validation schemas live in `packages/shared/src/schemas`; the
   public TypeScript model exports live in `packages/shared/src/types`.
 
@@ -57,4 +56,4 @@ feature is released. The existing decisions above remain in force.
 - Confirm the customer-approved rows in the table above.
 - Compare the model against anonymized shipment, carrier-rate and award
   workbooks.
-- Record the results of the Entra, Sites.Selected, Excel API and SharePoint
+- Record the results of the Sites.Selected, Excel API and SharePoint

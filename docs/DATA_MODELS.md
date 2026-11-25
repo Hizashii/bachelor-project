@@ -74,12 +74,12 @@ The transport company that receives invitations and submits offers.
 ## UserMembership
 
 An authorization snapshot connecting an identity to a role and, for carriers,
-to one company. Entra remains the identity source.
+to one company. PostgreSQL accounts and memberships are the current identity source.
 
 | Field | Type | Rule |
 | --- | --- | --- |
 | `id` | UUID | Server generated |
-| `entraUserId` | Text | External identity identifier |
+| `userAccountId` | UUID | PostgreSQL user account identifier |
 | `role` | Role | Exactly one product role in the initial model |
 | `carrierCompanyId` | UUID or null | Required for `carrier`, null for consultancy roles |
 | `status` | `active \| suspended` | Suspended membership is denied |

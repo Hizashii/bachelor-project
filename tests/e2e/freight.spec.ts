@@ -31,6 +31,21 @@ test.beforeEach(async ({ page }) => {
   await logIn(page, "staff@example.test");
 });
 
+test("public homepage shows an honest empty comparison preview", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Log ud" }).click();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await page.goto("/");
+
+  await expect(page.getByText("Strukturel visning")).toBeVisible();
+  await expect(
+    page.getByText("Ingen live tilbud vises på forsiden."),
+  ).toBeVisible();
+  await expect(page.getByText("Transportør A")).toHaveCount(0);
+  await expect(page.getByText("1.240.000 DKK/year")).toHaveCount(0);
+});
+
 test("staff lands on the empty tender workspace", async ({ page }) => {
   await page.goto("/");
 
@@ -46,7 +61,9 @@ test("staff lands on the empty tender workspace", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Der er ingen udbud endnu" }),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Udbud" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Udbud", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Overblik")).toHaveCount(0);
   await expect(page.getByText("Fakturakontrol")).toHaveCount(0);
   await expect(page.getByText("Prisberegner")).toHaveCount(0);
@@ -55,7 +72,7 @@ test("staff lands on the empty tender workspace", async ({ page }) => {
 test("staff creates, refreshes and edits a tender draft", async ({ page }) => {
   await page.goto("/tenders");
   await page.getByRole("link", { name: "Opret udbud" }).click();
-  await page.getByLabel("Navn pÃ¥ udbud").fill("Jylland 2027");
+  await page.getByLabel("Navn på udbud").fill("Jylland 2027");
   await page.getByLabel("Kundereference").fill("SA-2027-01");
   await page.getByLabel("Visningstidszone").fill("Europe/Copenhagen");
   await page.getByLabel("Valuta").selectOption("DKK");
@@ -71,7 +88,7 @@ test("staff creates, refreshes and edits a tender draft", async ({ page }) => {
   ).toBeVisible();
 
   await page.getByRole("link", { name: "Rediger kladde" }).click();
-  await page.getByLabel("Navn pÃ¥ udbud").fill("Jylland 2027 opdateret");
+  await page.getByLabel("Navn på udbud").fill("Jylland 2027 opdateret");
   await page.getByRole("button", { name: "Gem kladde" }).click();
   await expect(
     page.getByRole("heading", { name: "Jylland 2027 opdateret" }),

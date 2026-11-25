@@ -41,9 +41,8 @@ e-mail needs a mail service and is not built.
 The first master is made on the server: `npm run admin:create -w @freight-desk/api -- name@example.com "Full Name"`
 prints an invitation link for that person.
 
-## Microsoft 365 and Microsoft sign-in
+## Microsoft 365 and file storage
 
 The server talks to SharePoint with its own application credentials (`SHAREPOINT_*`, client
 credentials and the Graph permission `Sites.Selected`). That is separate from user login and does not
-involve user accounts. `user_accounts.entra_subject` is kept empty so that an optional Microsoft
-sign-in can be added later without changing the schema.
+involve user accounts. The browser never receives those credentials or talks to Microsoft Graph.

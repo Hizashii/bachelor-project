@@ -50,12 +50,10 @@ Uploads are also capped by `MAX_UPLOAD_BYTES`.
 
 ## Still open
 
-- The user directory (`auth/directory.ts`) is in memory with a fixed list of carrier
-  companies. The comparison shows the company id as the carrier name until the
-  organisation data has names.
-- `modules/files` and `infrastructure/microsoft365` from the platform foundation are not
-  used by the running app; the storage adapter replaced that design.
-- Nothing has been tested against a real Microsoft 365 tenant.
+- Tender listing, creation, invitations, bids and awards are not implemented yet. The
+  `/tenders` screen is an honest empty landing surface until those services exist.
+- Local storage is the development adapter. Nothing has been tested against a real
+  Microsoft 365 tenant yet.
 
 ## Pricing rules that need customer approval
 
