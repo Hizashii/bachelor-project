@@ -6,6 +6,7 @@ import { apiFetch, downloadFile, postJson } from "../../api/client";
 import type { UserRole } from "../../auth/auth";
 import type { Locale } from "../../i18n";
 import { getCopy } from "../../i18n";
+import { TemplateBindingPanel } from "./TemplateBindingPanel";
 import type { TenderRecord } from "./tenderTypes";
 
 const BASIS_POINTS_PER_PERCENT = 100;
@@ -200,6 +201,13 @@ function StaffWorkflowPanel({
         ) : null}
         {message ? <p role="status">{message}</p> : null}
       </section>
+      {record.tender.status === "draft" || record.tender.status === "open" ? (
+        <TemplateBindingPanel
+          locale={locale}
+          tenderId={record.tender.id}
+          invitedCarrierIds={record.tender.invitedCarrierCompanyIds}
+        />
+      ) : null}
       {record.tender.status === "draft" || record.tender.status === "open" ? (
         <InvitationPanel
           copy={copy}

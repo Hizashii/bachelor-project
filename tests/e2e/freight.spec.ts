@@ -327,12 +327,16 @@ test("tender lifecycle: invite, carrier bids, staff closes and compares", async 
 test("tender workspace: staff saves a price and it survives a reload", async ({
   page,
 }) => {
-  const tenderId = await createOpenTender(page, "Lifecycle workspace 2027");
+  await createOpenTender(page, "Lifecycle workspace 2027");
   await page.getByRole("link", { name: "Tilbudsskabelon" }).click();
   await expect(page.getByText("Template ikke konfigureret")).toBeVisible();
 
-  await bindTemplates(page, tenderId);
-  await page.reload();
+  await page.goBack();
+  await page.getByRole("button", { name: "Knyt prisskabeloner" }).click();
+  await expect(
+    page.getByText("Skabeloner knyttet til udbuddet."),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Tilbudsskabelon" }).click();
   await page.getByRole("tab", { name: "Express price workbook" }).click();
   await page.getByRole("tab", { name: /^DK-BE/ }).click();
   await page.getByRole("textbox", { name: /DK-BE/ }).first().fill("12,5");
@@ -346,36 +350,3 @@ test("tender workspace: staff saves a price and it survives a reload", async ({
     page.getByRole("textbox", { name: /DK-BE/ }).first(),
   ).toHaveValue("12,5");
 });
-
-// Staff binding has no screen yet, so the test calls the API the way a screen would.
-async function bindTemplates(page: Page, tenderId: string) {
-  const { token } = await (await page.request.get("/api/csrf")).json();
-  const carriers = await (
-    await page.request.get("/api/tender-carriers")
-  ).json();
-  const { items } = await (
-    await page.request.get("/api/documents/templates")
-  ).json();
-  const binding = (kind: string) => {
-    const item = items.find((entry: { kind: string }) => entry.kind === kind);
-    return {
-      templateId: item.id,
-      templateVersion: item.version,
-      sourceSha256: item.source.sha256,
-    };
-  };
-  const response = await page.request.put(
-    `/api/tenders/${tenderId}/template-config`,
-    {
-      headers: { "x-csrf-token": token, origin: new URL(page.url()).origin },
-      data: {
-        biddingTemplate: binding("customer-bidding"),
-        expressPriceTemplate: binding("express-price"),
-        invitedCarrierIds: carriers.map(
-          (carrier: { organisationId: string }) => carrier.organisationId,
-        ),
-      },
-    },
-  );
-  expect(response.ok(), await response.text()).toBe(true);
-}

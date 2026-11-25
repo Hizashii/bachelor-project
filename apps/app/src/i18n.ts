@@ -150,6 +150,10 @@ const localeCopy = {
     documentsTab: "Dokumenter",
     saveChanges: "Gem ændringer",
     tenderTemplateTab: "Tilbudsskabelon",
+    bindTemplates: "Knyt prisskabeloner",
+    bindTemplatesDetail:
+      "Knyt de godkendte Excel-skabeloner til udbuddet, så priser kan udfyldes.",
+    templatesBound: "Skabeloner knyttet til udbuddet.",
     templatesEyebrow: "Dokumentskabeloner",
     templatesTitle: "Kundens Excel-skabeloner",
     templatesSubtitle:
@@ -556,6 +560,10 @@ const localeCopy = {
     documentsTab: "Documents",
     saveChanges: "Save changes",
     tenderTemplateTab: "Tender price template",
+    bindTemplates: "Attach price templates",
+    bindTemplatesDetail:
+      "Attach the approved Excel templates to this tender so prices can be entered.",
+    templatesBound: "Templates attached to the tender.",
     templatesEyebrow: "Document templates",
     templatesTitle: "Customer Excel templates",
     templatesSubtitle:
