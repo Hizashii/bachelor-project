@@ -227,7 +227,7 @@ describe.skipIf(!testDatabaseUrl)("password sign-in", () => {
     ).toBe(200);
   });
 
-  it("registers a carrier with a new company who can then sign in as a carrier", async () => {
+  it("registers a carrier who cannot sign in or be invited until an administrator approves", async () => {
     const payload = {
       companyName: "Green Fjord ApS",
       displayName: "Gry Green",
@@ -235,23 +235,67 @@ describe.skipIf(!testDatabaseUrl)("password sign-in", () => {
       password: NEW_PASSWORD,
     };
     expect((await post("/auth/register", payload)).statusCode).toBe(201);
+    expect(
+      (await t.accounts.activeCarriers()).some(
+        (carrier) => carrier.name === "Green Fjord ApS",
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await post("/auth/login", {
+          email: payload.email,
+          password: NEW_PASSWORD,
+        })
+      ).statusCode,
+    ).toBe(403);
+
+    const admin = await t.login("boss@example.test");
+    const created = (await t.accounts.listCarriers()).find(
+      (carrier) => carrier.displayName === "Green Fjord ApS",
+    );
+    const user = (await t.accounts.listUsers()).find(
+      (account) => account.email === payload.email,
+    );
+    for (const [url, id] of [
+      ["/api/admin/carriers/", created?.id],
+      ["/api/admin/users/", user?.id],
+    ]) {
+      const approved = await t.app.inject({
+        method: "PATCH",
+        url: `${url}${id}`,
+        headers: admin.headers,
+        payload: { status: "active" },
+      });
+      expect(approved.statusCode).toBe(200);
+    }
     const signedIn = await post("/auth/login", {
       email: payload.email,
       password: NEW_PASSWORD,
     });
     expect(signedIn.statusCode).toBe(200);
     expect(signedIn.json().user.role).toBe("carrier");
+  });
+
+  it("refuses a repeated e-mail, a weak password and another site, and leaves no company behind", async () => {
+    const before = (await t.accounts.listCarriers()).length;
+    const payload = {
+      companyName: "Orphan Test ApS",
+      displayName: "Olga",
+      email: "dana@bluefjord.test",
+      password: NEW_PASSWORD,
+    };
     expect((await post("/auth/register", payload)).statusCode).toBe(409);
     expect(
       (
         await post("/auth/register", {
           ...payload,
-          email: "x@y.test",
+          email: "o@o.test",
           password: "short",
         })
       ).statusCode,
     ).toBe(400);
     expect((await post("/auth/register", payload, {})).statusCode).toBe(403);
+    expect((await t.accounts.listCarriers()).length).toBe(before);
   });
 
   it("does not accept an expired invitation or a made-up token", async () => {

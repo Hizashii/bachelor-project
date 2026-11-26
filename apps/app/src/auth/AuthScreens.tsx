@@ -157,10 +157,10 @@ export function RegisterScreen() {
     return (
       <Card
         title="Account created"
-        intro="Your carrier account is ready. You can now log in."
+        intro="Your registration is waiting for approval by Slinkert & Aarøe. You can log in once your account has been approved."
       >
-        <a className="button button-primary auth-submit" href="/login">
-          Go to log in
+        <a className="button button-primary auth-submit" href="/">
+          Back to the front page
         </a>
       </Card>
     );

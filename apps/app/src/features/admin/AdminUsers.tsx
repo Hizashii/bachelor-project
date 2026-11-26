@@ -104,6 +104,24 @@ function CarrierSection({
           <li key={carrier.id}>
             <span>{carrier.displayName}</span>
             <span className="bid-waiting">{carrier.status}</span>
+            <button
+              className="button button-secondary"
+              type="button"
+              onClick={() =>
+                void run(() =>
+                  apiFetch(`/api/admin/carriers/${carrier.id}`, {
+                    method: "PATCH",
+                    headers: JSON_HEADERS,
+                    body: JSON.stringify({
+                      status:
+                        carrier.status === "active" ? "suspended" : "active",
+                    }),
+                  }),
+                )
+              }
+            >
+              {carrier.status === "active" ? copy.suspend : copy.reactivate}
+            </button>
           </li>
         ))}
       </ul>

@@ -159,6 +159,56 @@ export class Accounts {
     return { id };
   }
 
+  // Self-service sign-up. The company, the user and the password are saved together or not
+  // at all. Both start suspended, so the company stays out of staff's carrier list and the
+  // user cannot sign in until an administrator reactivates them.
+  async registerCarrier(input: {
+    companyName: string;
+    displayName: string;
+    email: string;
+    passwordHash: string;
+  }): Promise<void> {
+    const organisationId = randomUUID();
+    const userId = randomUUID();
+    const client = await this.database.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `INSERT INTO organizations (id, kind, legal_name, display_name, status)
+         VALUES ($1, 'carrier', $2, $2, 'suspended')`,
+        [organisationId, input.companyName],
+      );
+      await client.query(
+        `INSERT INTO user_accounts (id, email, display_name, password_hash, status)
+         VALUES ($1, $2, $3, $4, 'suspended')`,
+        [
+          userId,
+          input.email.trim(),
+          input.displayName.trim(),
+          input.passwordHash,
+        ],
+      );
+      await client.query(
+        `INSERT INTO organization_memberships
+           (id, user_account_id, organization_id, organization_kind, role,
+            carrier_company_id, carrier_company_kind)
+         VALUES ($1, $2, $3, 'carrier', 'carrier', $3, 'carrier')`,
+        [randomUUID(), userId, organisationId],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      if (isUniqueViolation(error)) {
+        throw new AccountError(
+          "A user with that e-mail address already exists.",
+        );
+      }
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   // Nobody can suspend themselves or the last active administrator.
   async setUserStatus(
     id: string,
