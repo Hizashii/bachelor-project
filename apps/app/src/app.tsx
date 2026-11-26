@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import {
   AcceptInvitationScreen,
   LoginScreen,
+  RegisterScreen,
   ResetPasswordScreen,
 } from "./auth/AuthScreens";
 import { type UserRole, useAuth } from "./auth/auth";
@@ -157,6 +158,7 @@ function TenderEditRoute({ locale }: { locale: Locale }) {
 function signedOutScreen(path: string): ReactElement {
   if (path === "/accept-invitation") return <AcceptInvitationScreen />;
   if (path === "/reset-password") return <ResetPasswordScreen />;
+  if (path === "/register") return <RegisterScreen />;
   if (path === "/login") return <LoginScreen />;
   return <LoginScreen />;
 }

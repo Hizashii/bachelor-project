@@ -79,10 +79,16 @@ function Header({
             onLocaleChange={onLocaleChange}
           />
           <NavLink
-            className="rounded border border-freight-gold px-5 py-2.5 font-semibold text-freight-gold transition-colors hover:bg-freight-gold hover:text-freight-night"
+            className="font-semibold text-white transition-colors hover:text-freight-gold"
             to="/login"
           >
             {copy.publicSignIn}
+          </NavLink>
+          <NavLink
+            className="rounded border border-freight-gold px-5 py-2.5 font-semibold text-freight-gold transition-colors hover:bg-freight-gold hover:text-freight-night"
+            to="/register"
+          >
+            {copy.publicSignUp}
           </NavLink>
         </nav>
       </div>
@@ -164,6 +170,12 @@ function Hero({ copy, locale }: { copy: Copy; locale: Locale }) {
               to="/login"
             >
               {copy.publicSignIn}
+            </NavLink>
+            <NavLink
+              className="font-semibold text-white underline decoration-freight-gold underline-offset-4"
+              to="/register"
+            >
+              {copy.publicSignUp}
             </NavLink>
           </div>
           <div className="mt-12 grid max-w-[34rem] gap-3 border-t border-white/20 pt-6 text-sm text-white/75 sm:grid-cols-2">

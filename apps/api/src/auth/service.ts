@@ -3,6 +3,7 @@
 // Not for HTTP: see routes.ts.
 
 import type { ApiEnvironment } from "../config/env.ts";
+import type { Accounts } from "../db/accounts.ts";
 import type { CredentialStore, LinkKind } from "../db/credentials.ts";
 import {
   hashPassword,
@@ -42,6 +43,7 @@ const invalidLink = () =>
 
 export type AuthServiceDependencies = {
   environment: ApiEnvironment;
+  accounts: Accounts;
   credentials: CredentialStore;
   sessions: SessionStore;
 };
@@ -82,6 +84,36 @@ export class AuthService {
       environment.SESSION_TTL_SECONDS,
     );
     return { ...session, user: toPublicUser(found.user) };
+  }
+
+  // Self-service sign-up for a carrier: a new carrier company with its first user.
+  // Staff accounts are never created this way; they come from an administrator's invitation.
+  public async registerCarrier(input: {
+    companyName: string;
+    displayName: string;
+    email: string;
+    password: string;
+  }): Promise<void> {
+    const { accounts, credentials } = this.dependencies;
+    this.assertGoodPassword(input.password, input.email);
+    if (await credentials.findByEmail(input.email)) {
+      throw new AuthError(
+        "email_taken",
+        "A user with that e-mail address already exists.",
+        409,
+      );
+    }
+    const carrier = await accounts.createCarrier(
+      input.companyName,
+      input.companyName,
+    );
+    const user = await accounts.createUser({
+      email: input.email,
+      displayName: input.displayName,
+      role: "carrier",
+      carrierId: carrier.id,
+    });
+    await credentials.setPassword(user.id, await hashPassword(input.password));
   }
 
   public async authenticate(

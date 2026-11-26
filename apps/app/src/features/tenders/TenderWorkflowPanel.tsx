@@ -284,6 +284,13 @@ function InvitationPanel({
       aria-labelledby="tender-carriers-title"
     >
       <h2 id="tender-carriers-title">{copy.carriers}</h2>
+      <button
+        className="button button-secondary"
+        type="button"
+        onClick={() => setSelected(carriers.map((c) => c.organisationId))}
+      >
+        {copy.selectAllCarriers}
+      </button>
       {carriers.map((carrier) => (
         <label key={carrier.organisationId}>
           <input

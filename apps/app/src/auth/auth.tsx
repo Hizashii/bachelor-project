@@ -83,15 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null,
         });
       })
-      .catch((error: unknown) => {
+      .catch(() => {
         if (!active) return;
+        // A stale session, a profile that was removed, or a transient failure
+        // should not trap the app on an auth error screen. Let the user sign in
+        // again; a fresh login will replace any unusable session cookie.
         setState({
-          status: "error",
+          status: "unauthenticated",
           user: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Authentication is unavailable.",
+          error: null,
         });
       });
 

@@ -47,6 +47,7 @@ export function buildApi(options: BuildApiOptions): FastifyInstance {
   const credentials = new CredentialStore(options.database);
   const authService = new AuthService({
     environment,
+    accounts,
     credentials,
     sessions: new SessionStore(options.database),
   });

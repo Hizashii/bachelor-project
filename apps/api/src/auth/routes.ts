@@ -20,6 +20,14 @@ const loginBody = z
 const linkBody = z
   .object({ token: z.string().min(20).max(200), password })
   .strict();
+const registerBody = z
+  .object({
+    companyName: z.string().trim().min(2).max(200),
+    displayName: z.string().trim().min(2).max(200),
+    email: z.string().trim().email().max(320),
+    password,
+  })
+  .strict();
 const changeBody = z
   .object({ currentPassword: password, newPassword: password })
   .strict();
@@ -73,6 +81,16 @@ export function registerAuthRoutes(
           cookieOptions(environment, environment.SESSION_TTL_SECONDS),
         )
         .send({ user });
+    },
+  );
+
+  server.post(
+    "/auth/register",
+    limit(environment.LOGIN_ATTEMPTS_PER_MINUTE),
+    async (request, reply) => {
+      assertSameOrigin(request, environment);
+      await authService.registerCarrier(registerBody.parse(request.body));
+      return reply.code(201).send({ ok: true });
     },
   );
 

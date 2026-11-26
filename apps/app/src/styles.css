@@ -236,6 +236,32 @@ h3 {
   margin-bottom: var(--space-4);
 }
 
+.back-button {
+  background: none;
+  border: 0;
+  color: var(--color-muted);
+  cursor: pointer;
+  font: inherit;
+  margin: var(--space-4) 0 0 var(--space-5);
+  padding: var(--space-2) 0;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.auth-back {
+  color: var(--color-muted);
+  display: inline-block;
+  margin-bottom: var(--space-4);
+  text-decoration: none;
+}
+
+.auth-switch {
+  color: var(--color-muted);
+  margin: var(--space-5) 0 0;
+}
+
 .auth-loading {
   color: var(--color-muted);
   margin: var(--space-5) 0 0;

@@ -227,6 +227,33 @@ describe.skipIf(!testDatabaseUrl)("password sign-in", () => {
     ).toBe(200);
   });
 
+  it("registers a carrier with a new company who can then sign in as a carrier", async () => {
+    const payload = {
+      companyName: "Green Fjord ApS",
+      displayName: "Gry Green",
+      email: "gry@greenfjord.test",
+      password: NEW_PASSWORD,
+    };
+    expect((await post("/auth/register", payload)).statusCode).toBe(201);
+    const signedIn = await post("/auth/login", {
+      email: payload.email,
+      password: NEW_PASSWORD,
+    });
+    expect(signedIn.statusCode).toBe(200);
+    expect(signedIn.json().user.role).toBe("carrier");
+    expect((await post("/auth/register", payload)).statusCode).toBe(409);
+    expect(
+      (
+        await post("/auth/register", {
+          ...payload,
+          email: "x@y.test",
+          password: "short",
+        })
+      ).statusCode,
+    ).toBe(400);
+    expect((await post("/auth/register", payload, {})).statusCode).toBe(403);
+  });
+
   it("does not accept an expired invitation or a made-up token", async () => {
     const admin = await t.login("boss@example.test");
     const created = await t.app.inject({

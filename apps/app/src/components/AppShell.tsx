@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import type { SafeUserProfile } from "../auth/auth";
 import type { Locale } from "../i18n";
 import { getCopy } from "../i18n";
@@ -21,6 +21,13 @@ export function AppShell({
 }: AppShellProps) {
   const copy = getCopy(locale);
   const homePath = "/tenders";
+  const navigate = useNavigate();
+  const { pathname, key } = useLocation();
+  // The first page of a session has nothing to go back to, so go to the tender list.
+  const goBack = () => {
+    if (key === "default") navigate(homePath);
+    else navigate(-1);
+  };
 
   return (
     <div className="app-shell">
@@ -64,6 +71,11 @@ export function AppShell({
           {copy.localStorageActive}
         </div>
       ) : null}
+      {pathname === homePath ? null : (
+        <button className="back-button" type="button" onClick={goBack}>
+          ← {copy.back}
+        </button>
+      )}
       <main>{children}</main>
     </div>
   );

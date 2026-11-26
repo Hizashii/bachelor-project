@@ -7,6 +7,7 @@ import { testDatabaseUrl } from "../testing/testDatabase.ts";
 const OPEN_ROUTES = new Set([
   "GET /health",
   "POST /auth/login",
+  "POST /auth/register",
   "POST /auth/accept-invitation",
   "POST /auth/reset-password",
   "POST /auth/logout",

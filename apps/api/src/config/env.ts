@@ -71,7 +71,9 @@ const OWN_PREFIXES = [
   "STORAGE_",
   "IMPORT_",
   "MAX_UPLOAD",
-  "SESSION_",
+  // Avoid colliding with desktop environment variables such as SESSION_MANAGER.
+  // This still catches misspelled session settings like SESSION_TTL.
+  "SESSION_TTL",
   "LOGIN_",
   "NODE_ENV",
   "LOCAL_STORAGE_",

@@ -82,6 +82,12 @@ describe("API environment", () => {
     }
   });
 
+  it("ignores unrelated desktop session variables", () => {
+    expect(() =>
+      loadApiEnvironment({ ...localEnvironment, SESSION_MANAGER: "gnome" }),
+    ).not.toThrow();
+  });
+
   it("accepts a complete production configuration", () => {
     expect(() => loadApiEnvironment(productionEnvironment)).not.toThrow();
   });
